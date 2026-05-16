@@ -1,10 +1,8 @@
 function makeScreens(entries) {
-  return entries.map(([name, detail], index) => ({
-    name,
-    detail,
-    difficulty: 1 + index * 0.12,
-    pipeCount: Math.min(8, 3 + Math.floor((index + 1) * 0.6))
-  }));
+  return entries.map((entry, index) => {
+    const [name, detail, groundY] = Array.isArray(entry) ? entry : [entry, "", 464];
+    return { name, detail, difficulty: 1 + index * 0.12, pipeCount: Math.min(8, 3 + Math.floor((index + 1) * 0.6)), groundY: groundY || 464 };
+  });
 }
 const scenarios = [
   {
@@ -27,8 +25,8 @@ const scenarios = [
       ["Bidebitarte", "Pasillos estrechos y escapes más altos."],
       ["Camino de Petritegi", "Barriles y curvas complican el acceso."],
       ["Murgia", "La red vieja empieza a temblar."],
-      ["Santiagomendi", "La cuesta exige mejores saltos."],
-      ["Ribera del Urumea", "El agua exterior empuja la inundación."],
+      ["Santiagomendi", "La cuesta exige mejores saltos.", 444],
+      ["Ribera del Urumea", "El agua exterior empuja la inundación.", 484],
       ["Zona de Sidrerías", "Muchas fugas pequeñas a la vez."],
       ["Gran Txotx Final", "Última sala con presión máxima."]
     ]),
@@ -50,8 +48,8 @@ const scenarios = [
     screens: makeScreens([
       ["Pasai Antxo Renfe", "Arranque junto a la estación y Nafarroa etorbidea."],
       ["Nafarroa Etorbidea", "El tráfico vibra sobre las conducciones."],
-      ["Muelle Interior", "Gotas rápidas por la humedad del puerto."],
-      ["Grúas del Puerto", "Tuberías altas y escapes verticales."],
+      ["Muelle Interior", "Gotas rápidas por la humedad del puerto.", 484],
+      ["Grúas del Puerto", "Tuberías altas y escapes verticales.", 444],
       ["Molinao", "La canalización se estrecha cerca del agua."],
       ["Entrada a la Bahía", "Oleaje y presión lateral."],
       ["Tinglados", "Sombras, cajas y fugas simultáneas."],
@@ -82,8 +80,8 @@ const scenarios = [
       ["Casares", "Conductos altos y saltos precisos."],
       ["Leosiñeta", "Pantalla de desniveles y escapes bajos."],
       ["Arriaga", "La presión se concentra en columnas."],
-      ["Cuestas de Altza", "Tuberías desalineadas por la pendiente."],
-      ["Buenavista", "Bloques densos y poca ventana de reacción."],
+      ["Cuestas de Altza", "Tuberías desalineadas por la pendiente.", 444],
+      ["Buenavista", "Bloques densos y poca ventana de reacción.", 448],
       ["Altza Final", "Todas las alturas entran en juego."]
     ]),
     notes: ["10 pantallas con cuestas y bloques", "Tuberías a distintas alturas", "Dificultad irregular"]
@@ -137,7 +135,7 @@ const scenarios = [
       ["Atotxa", "Zona densa con escapes simultáneos."],
       ["Ametzagaña", "Pendiente y tuberías desalineadas."],
       ["Mundaiz Ikastetxea", "Fugas medianas repartidas por todo el tramo."],
-      ["Ribera de Egia", "El río acelera la inundación si te retrasas."],
+      ["Ribera de Egia", "El río acelera la inundación si te retrasas.", 484],
       ["Egia Final", "Último corte de agua antes de salvar el barrio."]
     ]),
     notes: ["Nuevo barrio con 10 pantallas", "Tabakalera, Urumea y Cristina Enea", "Dificultad media-alta"]
@@ -156,8 +154,8 @@ const scenarios = [
     map: { center: [43.3224000, -1.9730000], zoom: 16, drift: [0.006, 0.018] },
     pipeY: [92, 124, 80, 134, 104, 146],
     screens: makeScreens([
-      ["Zurriola", "El oleaje empuja el agua hacia la red."],
-      ["Kursaal", "Cristales y tuberías bajo presión."],
+      ["Zurriola", "El oleaje empuja el agua hacia la red.", 484],
+      ["Kursaal", "Cristales y tuberías bajo presión.", 448],
       ["Plaza Cataluña", "Averías repartidas por el centro de Gros."],
       ["Usandizaga", "Calles estrechas y escapes rápidos."],
       ["Secundino Esnaola", "El barrio vibra con fugas cruzadas."],
@@ -213,8 +211,8 @@ const scenarios = [
       ["Boulevard", "Entrada con mucho tránsito."],
       ["31 de Agosto", "Tuberías antiguas y estrechas."],
       ["Plaza Constitución", "Averías alrededor de soportales."],
-      ["Puerto", "El agua salada complica el drenaje."],
-      ["San Vicente", "Fugas altas entre fachadas."],
+      ["Puerto", "El agua salada complica el drenaje.", 480],
+      ["San Vicente", "Fugas altas entre fachadas.", 448],
       ["Santa María", "Conductos viejos y baja visibilidad."],
       ["Fermín Calbetón", "Zona densa con enemigos cercanos."],
       ["Narrika", "Pantalla corta pero intensa."],

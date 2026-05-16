@@ -18,6 +18,8 @@
     const pipes = [];
     const drops = [];
     const particles = [];
+    const platforms = [];
+    const ramps = [];
     const enemies = [];
     const projectiles = [];
     const drains = [];
@@ -151,7 +153,7 @@
     function loadWorld() {
       player = {
         x: 80,
-        y: floorY - 58,
+        y: getFloorY(80) - 58,
         w: 34,
         h: 58,
         vx: 0,
@@ -174,6 +176,8 @@
       pipes.length = 0;
       drops.length = 0;
       particles.length = 0;
+      platforms.length = 0;
+      ramps.length = 0;
       enemies.length = 0;
       projectiles.length = 0;
       drains.length = 0;
@@ -188,6 +192,8 @@
       specialEvent = null;
       gameOver = false;
       nextEventAt = randomRange(20, 30);
+      platforms.push(...(scenarioPlatforms[scenario.id] || []));
+      ramps.push(...(scenarioRamps[scenario.id] || []));
 
       for (let stage = 1; stage <= totalStages; stage++) {
         const screen = scenario.screens[stage - 1];
@@ -205,9 +211,10 @@
             repairedFlash: 0
           });
         }
+        const drainX = areaStart + randomRange(180, W - 180);
         drains.push({
-          x: areaStart + randomRange(180, W - 180),
-          y: floorY - 10,
+          x: drainX,
+          y: getFloorY(drainX) - 10,
           clogged: randomRange(0.35, 0.72) * screen.difficulty,
           repairedFlash: 0
         });
@@ -238,10 +245,11 @@
         const enemyH = type === "rat" ? 22 : type === "cockroach" ? 12 : type === "kroketas" ? 56 : type === "dog" ? 24 : type === "dj" || type === "knife" || type === "thief" ? 58 : 36;
         const cockroachSpeed = type === "cockroach" ? 1.7 : 1;
         const isKroketas = type === "kroketas";
+        const enemyX = isKroketas ? areaStart + randomRange(120, W - 200) : areaStart + randomRange(260, W - 110);
         enemies.push({
           type,
-          x: isKroketas ? areaStart + randomRange(120, W - 200) : areaStart + randomRange(260, W - 110),
-          y: flying ? randomRange(170, 280) : floorY - enemyH,
+          x: enemyX,
+          y: flying ? randomRange(170, 280) : getFloorY(enemyX) - enemyH,
           w: enemyW,
           h: enemyH,
           vx: isKroketas ? randomRange(22, 38) * (Math.random() > 0.5 ? 1 : -1) : randomRange(42, 72) * (Math.random() > 0.5 ? 1 : -1) * screen.difficulty * cockroachSpeed,
@@ -257,7 +265,7 @@
         enemies.push({
           type: "boss",
           x: areaStart + W / 2,
-          y: floorY - 100,
+          y: getFloorY(areaStart + W / 2) - 100,
           w: 56,
           h: 80,
           vx: 0,
@@ -392,23 +400,21 @@
     function updateCharacterSpecial(dt) {
       if (specialEvent.type === "cash") {
         if (!waiter) {
-          waiter = { x: player.x + (Math.random() > 0.5 ? -1 : 1) * randomRange(350, 500), y: floorY - 64, w: 34, h: 60, vx: 0, hit: false };
+          const waiterX = player.x + (Math.random() > 0.5 ? -1 : 1) * randomRange(350, 500);
+          waiter = { x: waiterX, y: getFloorY(waiterX) - 64, w: 34, h: 60, vx: 0, hit: false };
           waiter.x = clamp(waiter.x, 20, worldWidth - 20);
         }
         const dx = player.x - waiter.x;
         waiter.vx = Math.sign(dx) * 140;
         waiter.x += waiter.vx * dt;
+        waiter.y = getFloorY(waiter.x) - waiter.h;
         if (Math.abs(dx) < 20 && !waiter.hit) {
-          playerHealth = Math.max(0, playerHealth - 1);
-          hurtTimer = 0.8;
-          player.vx = -Math.sign(dx) * 300;
-          player.vy = -160;
+          damagePlayer(1, -Math.sign(dx || 1) * 300, -160);
           waiter.hit = true;
           showNotice("¡TE ATRAPÓ EL CAMARERO!", 1.2);
-          playSound("hurt");
         }
       }
-      if (specialEvent.type === "rosario") {
+      if (specialEvent.type === "charo") {
         for (const enemy of enemies) {
           if (Math.abs(enemy.x - player.x) < 400) {
             enemy.stun = Math.max(enemy.stun, 0.8);
@@ -473,8 +479,8 @@
         specialEvent = { type: "calm", timer: 22 };
         showNotice("USOA: ¡CALMA TOTAL!", 4);
       } else if (id === "mariKarmen") {
-        specialEvent = { type: "rosario", timer: 14 };
-        showNotice("MARI KARMEN: ¡ROSARIO PROTECTOR!", 4);
+        specialEvent = { type: "charo", timer: 14 };
+        showNotice("MARI KARMEN: ¡CHARO PROTECTOR!", 4);
       } else if (id === "alcalde") {
         specialEvent = { type: "manifest", timer: 10 };
         showNotice("ALCALDE: ¡MANIFESTACIÓN! Aturde a todos", 4);
@@ -492,7 +498,7 @@
       helpers.push({
         type,
         x: clamp(player.x + randomRange(-120, 120), 40, worldWidth - 80),
-        y: floorY - 54,
+        y: getFloorY(player.x) - 54,
         w: 34,
         h: 54,
         timer: type === "munipa" ? 14 : 12,
@@ -558,8 +564,37 @@
         return;
       }
 
-      if (player.y + player.h >= floorY) {
-        player.y = floorY - player.h;
+      player.grounded = false;
+      if (player.vy >= 0) {
+        for (const ramp of ramps) {
+          const centerX = player.x + player.w / 2;
+          if (centerX < ramp.x || centerX > ramp.x + ramp.w) continue;
+          const t = (centerX - ramp.x) / ramp.w;
+          const rampY = ramp.y + ramp.dy * t;
+          const feetY = player.y + player.h;
+          const prevFeetY = feetY - player.vy * dt;
+          if (prevFeetY <= rampY + 10 && feetY >= rampY) {
+            player.y = rampY - player.h;
+            player.vy = 0;
+            player.grounded = true;
+            break;
+          }
+        }
+        for (const platform of platforms) {
+          if (player.grounded) break;
+          const feetY = player.y + player.h;
+          const prevFeetY = feetY - player.vy * dt;
+          if (prevFeetY <= platform.y + 8 && feetY >= platform.y && player.x + player.w > platform.x && player.x < platform.x + platform.w) {
+            player.y = platform.y - player.h;
+            player.vy = 0;
+            player.grounded = true;
+            break;
+          }
+        }
+      }
+      const groundY = getFloorY(player.x + player.w / 2);
+      if (player.y + player.h >= groundY) {
+        player.y = groundY - player.h;
         player.vy = 0;
         player.grounded = true;
       }
@@ -635,7 +670,7 @@
 
     function handleRepair(dt) {
       const repairing = keys.has("e") || keys.has("E");
-      const nearest = nearestLeakingPipe(specialEvent?.type === "debug" ? 120 : 46);
+      const nearest = nearestLeakingPipe(46);
       const nearestDrain = drains.find(drain => drain.clogged > 0 && Math.abs((player.x + player.w / 2) - drain.x) < 52);
       repairTarget = nearest || nearestDrain || null;
 
@@ -704,11 +739,12 @@
         const drop = drops[i];
         drop.vy += 90 * dt;
         drop.y += drop.vy * dt;
-        if (drop.y > floorY - waterLevel) {
+        const groundY = getFloorY(drop.x);
+        if (drop.y > groundY - waterLevel) {
           drops.splice(i, 1);
           waterLevel += 0.12;
           for (let p = 0; p < 4; p++) {
-            particles.push({ x: drop.x, y: floorY - waterLevel, vx: randomRange(-60, 60), vy: randomRange(-80, -20), life: 0.42, color: "#42e8ff" });
+            particles.push({ x: drop.x, y: groundY - waterLevel, vx: randomRange(-60, 60), vy: randomRange(-80, -20), life: 0.42, color: "#42e8ff" });
           }
         }
       }
@@ -724,7 +760,28 @@
         showNotice("¡CAFÉ RECOGIDO! Velocidad x2", 2.4);
         return;
       }
-      if (coffee.y > floorY) coffee = null;
+      if (coffee.y > getFloorY(coffee.x)) coffee = null;
+    }
+
+    function damagePlayer(amount, knockbackX = 0, knockbackY = -120) {
+      playerHealth = Math.max(0, playerHealth - amount);
+      hurtTimer = Math.max(hurtTimer, 0.6);
+      player.vx = knockbackX;
+      player.vy = knockbackY;
+      playSound("hurt");
+      checkPlayerDown();
+    }
+
+    function checkPlayerDown() {
+      if (playerHealth > 0 || gameOver) return;
+      gameOver = true;
+      deathCause = "enemigo";
+      if (!recordSaved) { saveRecord(); recordSaved = true; }
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem("pipepanic_highscore", String(Math.floor(score)));
+      }
+      showNotice("¡FUERA DE SERVICIO! Pulsa Enter", 99);
     }
 
     function updateProjectiles(dt) {
@@ -738,6 +795,7 @@
           const pSize = 12;
           for (let e = enemies.length - 1; e >= 0; e--) {
             const enemy = enemies[e];
+            if (projectile.owner === enemy) continue;
             if (rectsOverlap(projectile.x - pSize / 2, projectile.y - pSize / 2, pSize, pSize, enemy.x, enemy.y, enemy.w, enemy.h)) {
               damageEnemy(e, projectile.damage, 0.15);
               consumed = true;
@@ -745,18 +803,12 @@
             }
           }
           if (!consumed && hurtTimer <= 0 && rectsOverlap(projectile.x - pSize / 2, projectile.y - pSize / 2, pSize, pSize, player.x, player.y, player.w, player.h)) {
-            playerHealth = Math.max(0, playerHealth - projectile.damage);
-            hurtTimer = 0.6;
-            player.vx = -Math.sign(projectile.vx) * 180;
-            player.vy = -120;
-            playSound("hurt");
-            if (playerHealth <= 0) {
-              gameOver = true;
-              deathCause = "enemigo";
-              if (!recordSaved) { saveRecord(); recordSaved = true; }
-              if (score > highScore) { highScore = score; localStorage.setItem("pipepanic_highscore", String(Math.floor(score))); }
-              showNotice("¡FUERA DE SERVICIO! Pulsa Enter", 99);
-            }
+            damagePlayer(projectile.damage, -Math.sign(projectile.vx || 1) * 180, -120);
+            consumed = true;
+          }
+        } else if (!consumed && projectile.enemyProjectile) {
+          if (hurtTimer <= 0 && rectsOverlap(projectile.x - 8, projectile.y - 8, 16, 16, player.x, player.y, player.w, player.h)) {
+            damagePlayer(projectile.damage, -Math.sign(projectile.vx || 1) * 220, -150);
             consumed = true;
           }
         } else {
@@ -787,6 +839,7 @@
           const areaStart = Math.floor(enemy.x / W) * W;
           if (enemy.x < areaStart + 38 || enemy.x + enemy.w > areaStart + W - 38) enemy.vx *= -1;
         }
+        if (!enemy.flying && enemy.type !== "boss") enemy.y = getFloorY(enemy.x) - enemy.h;
 
         if (enemy.type === "boss") {
           enemy.attackTimer -= dt;
@@ -796,12 +849,13 @@
               y: enemy.y + 40,
               vx: (player.x - enemy.x > 0 ? 1 : -1) * 180,
               life: 2,
-              damage: 1.5
+              damage: 1.5,
+              enemyProjectile: true
             });
             enemy.attackTimer = 1.8 + Math.random();
           }
           const bossBob = Math.sin(performance.now() / 200) * 15;
-          enemy.y = floorY - 100 + bossBob;
+          enemy.y = getFloorY(enemy.x) - 100 + bossBob;
         }
 
         if (enemy.type === "kroketas") {
@@ -820,7 +874,8 @@
               life: 1.8,
               damage: 0.8,
               friendlyFire: true,
-              color: "#e8c840"
+              color: "#e8c840",
+              owner: enemy
             });
             enemy.attackTimer = 2 + Math.random() * 1.5;
           }
@@ -840,22 +895,8 @@
             continue;
           }
           if (isMariKarmen) continue;
-          playerHealth -= enemy.damage || 1;
-          hurtTimer = 1.1;
-          player.vx = -Math.sign(enemy.vx || 1) * 220;
-          player.vy = -180;
+          damagePlayer(enemy.damage || 1, -Math.sign(enemy.vx || 1) * 220, -180);
           showNotice("¡GOLPE!", 0.8);
-          playSound("hurt");
-          if (playerHealth <= 0) {
-            gameOver = true;
-            deathCause = "enemigo";
-            if (!recordSaved) { saveRecord(); recordSaved = true; }
-            if (score > highScore) {
-              highScore = score;
-              localStorage.setItem("pipepanic_highscore", String(Math.floor(score)));
-            }
-            showNotice("¡FUERA DE SERVICIO! Pulsa Enter", 99);
-          }
         }
       }
     }
@@ -866,26 +907,27 @@
         helper.timer -= dt;
         helper.actionTimer -= dt;
         helper.x = approach(helper.x, player.x + (helper.type === "munipa" ? -70 : 70), 120 * dt);
+        helper.y = getFloorY(helper.x) - helper.h;
         if (helper.actionTimer <= 0) {
           helper.actionTimer = helper.type === "munipa" ? 0.7 : 0.9;
-      if (helper.type === "munipa") {
-        const enemyIndex = enemies.findIndex(enemy => Math.abs(enemy.x - helper.x) < 220);
-        if (enemyIndex >= 0) damageEnemy(enemyIndex, 1, 0.7);
-      } else {
-        const pipe = pipes.find(item => item.leak > 0 && Math.abs(item.x - helper.x) < 180);
-        const drain = drains.find(item => item.clogged > 0 && Math.abs(item.x - helper.x) < 180);
-        if (pipe) {
-          pipe.leak = Math.max(0, pipe.leak - 0.16);
-          pipe.repairedFlash = 0.2;
-          for (let p = 0; p < 3; p++) particles.push({ x: pipe.x + randomRange(-10, 10), y: pipe.y + 20, vx: randomRange(-30, 30), vy: randomRange(-70, -20), life: 0.35, color: "#73ff9f" });
-        }
-        if (drain) {
-          drain.clogged = Math.max(0, drain.clogged - 0.16);
-          drain.repairedFlash = 0.2;
-          for (let p = 0; p < 3; p++) particles.push({ x: drain.x + randomRange(-10, 10), y: floorY, vx: randomRange(-30, 30), vy: randomRange(-70, -20), life: 0.35, color: "#42e8ff" });
-        }
-        waterLevel = Math.max(0, waterLevel - 0.7);
-      }
+          if (helper.type === "munipa") {
+            const enemyIndex = enemies.findIndex(enemy => Math.abs(enemy.x - helper.x) < 220);
+            if (enemyIndex >= 0) damageEnemy(enemyIndex, 1, 0.7);
+          } else {
+            const pipe = pipes.find(item => item.leak > 0 && Math.abs(item.x - helper.x) < 180);
+            const drain = drains.find(item => item.clogged > 0 && Math.abs(item.x - helper.x) < 180);
+            if (pipe) {
+              pipe.leak = Math.max(0, pipe.leak - 0.16);
+              pipe.repairedFlash = 0.2;
+              for (let p = 0; p < 3; p++) particles.push({ x: pipe.x + randomRange(-10, 10), y: pipe.y + 20, vx: randomRange(-30, 30), vy: randomRange(-70, -20), life: 0.35, color: "#73ff9f" });
+            }
+            if (drain) {
+              drain.clogged = Math.max(0, drain.clogged - 0.16);
+              drain.repairedFlash = 0.2;
+              for (let p = 0; p < 3; p++) particles.push({ x: drain.x + randomRange(-10, 10), y: getFloorY(drain.x), vx: randomRange(-30, 30), vy: randomRange(-70, -20), life: 0.35, color: "#42e8ff" });
+            }
+            waterLevel = Math.max(0, waterLevel - 0.7);
+          }
         }
         if (helper.timer <= 0) helpers.splice(i, 1);
       }
@@ -919,6 +961,8 @@
       drawBackground();
       drawSkyDetails();
       drawLandmarks();
+      drawPlatforms();
+      drawInteriorOverlay();
       drawZoneOverlay();
       drawDrains();
       drawPipes();
@@ -944,15 +988,92 @@
       sky.addColorStop(0, scenario.sky);
       sky.addColorStop(1, scenario.ground);
       ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, W, floorY);
+      ctx.fillRect(0, 0, W, H);
 
-      ctx.fillStyle = scenario.ground;
-      ctx.fillRect(0, floorY, W, H - floorY);
-      ctx.fillStyle = "#1a2533";
-      const tileOffset = -(cameraX % 64);
-      for (let x = tileOffset; x < W; x += 64) ctx.fillRect(x, floorY, 44, 8);
-      ctx.fillStyle = "#101a26";
-      ctx.fillRect(0, floorY, W, 3);
+      for (let index = 0; index < totalStages; index++) {
+        const worldX = index * W;
+        if (worldX + W < cameraX || worldX > cameraX + W) continue;
+        const x = visibleX(worldX);
+        const groundY = selectedScenario?.screens[index]?.groundY || floorY;
+        ctx.fillStyle = scenario.ground;
+        ctx.fillRect(x, groundY, W, H - groundY);
+        ctx.fillStyle = "#1a2533";
+        const tileOffset = -((cameraX - worldX) % 64);
+        for (let tx = x + tileOffset; tx < x + W; tx += 64) ctx.fillRect(tx, groundY, 44, 8);
+        ctx.fillStyle = "#101a26";
+        ctx.fillRect(x, groundY, W, 3);
+      }
+    }
+
+    function drawPlatforms() {
+      ctx.save();
+      for (const ramp of ramps) {
+        if (ramp.x + ramp.w < cameraX - 60 || ramp.x > cameraX + W + 60) continue;
+        const sx = visibleX(ramp.x);
+        ctx.fillStyle = "rgba(22, 35, 50, 0.92)";
+        ctx.beginPath();
+        ctx.moveTo(sx, ramp.y);
+        ctx.lineTo(sx + ramp.w, ramp.y + ramp.dy);
+        ctx.lineTo(sx + ramp.w, ramp.y + ramp.dy + 18);
+        ctx.lineTo(sx, ramp.y + 18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.22)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx, ramp.y);
+        ctx.lineTo(sx + ramp.w, ramp.y + ramp.dy);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        for (let step = 18; step < ramp.w; step += 24) {
+          const t = step / ramp.w;
+          const sy = ramp.y + ramp.dy * t;
+          ctx.fillRect(sx + step, sy, 12, 4);
+        }
+      }
+      for (const platform of platforms) {
+        if (platform.x + platform.w < cameraX - 60 || platform.x > cameraX + W + 60) continue;
+        const sx = visibleX(platform.x);
+        ctx.fillStyle = "rgba(22, 35, 50, 0.92)";
+        ctx.fillRect(sx, platform.y, platform.w, 14);
+        ctx.fillStyle = "rgba(255,255,255,0.16)";
+        ctx.fillRect(sx, platform.y, platform.w, 3);
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        for (let x = sx + 10; x < sx + platform.w; x += 24) ctx.fillRect(x, platform.y + 4, 10, 7);
+      }
+      ctx.restore();
+    }
+
+    function drawInteriorOverlay() {
+      if (!selectedScenario || !player) return;
+      const interiors = {
+        "pasai-antxo": [
+          { from: 6660, to: 7050, label: "SOCIEDAD GALEPERTARRAK" },
+        ],
+        "larratxo-altza": [
+          { from: 7420, to: 7820, label: "ZARDOYA OTIS" },
+        ],
+      }[selectedScenario.id] || [];
+      const room = interiors.find(item => player.x > item.from && player.x < item.to);
+      if (!room) return;
+      const left = Math.max(0, visibleX(room.from));
+      const right = Math.min(W, visibleX(room.to));
+      ctx.save();
+      ctx.fillStyle = "rgba(4, 8, 14, 0.48)";
+      ctx.fillRect(left, 0, right - left, H);
+      ctx.fillStyle = "rgba(20, 24, 32, 0.88)";
+      ctx.fillRect(left, 0, right - left, 72);
+      ctx.fillStyle = "rgba(255, 209, 102, 0.15)";
+      for (let x = left + 18; x < right; x += 58) ctx.fillRect(x, 0, 12, getFloorY(cameraX + x));
+      ctx.strokeStyle = "rgba(255, 209, 102, 0.34)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(left + 8, 12, Math.max(0, right - left - 16), 36);
+      ctx.fillStyle = "#ffd166";
+      ctx.font = "900 14px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(room.label, (left + right) / 2, 36);
+      ctx.textAlign = "left";
+      ctx.restore();
     }
 
     function drawSkyDetails() {
@@ -1101,6 +1222,61 @@
       ],
     };
 
+    const scenarioPlatforms = {
+      "pasai-antxo": [
+        { x: 3100, y: 380, w: 200 },
+        { x: 5200, y: 360, w: 160 },
+        { x: 7600, y: 340, w: 180 },
+      ],
+      "larratxo-altza": [
+        { x: 1200, y: 400, w: 180 },
+        { x: 3400, y: 370, w: 160 },
+        { x: 7500, y: 360, w: 200 },
+      ],
+      "egia": [
+        { x: 200, y: 380, w: 200 },
+        { x: 5500, y: 340, w: 180 },
+      ],
+      "gros": [
+        { x: 600, y: 390, w: 160 },
+        { x: 6300, y: 350, w: 200 },
+      ],
+      "amara": [
+        { x: 300, y: 370, w: 220 },
+        { x: 5200, y: 360, w: 160 },
+      ],
+      "parte-vieja": [
+        { x: 1500, y: 380, w: 140 },
+        { x: 4300, y: 370, w: 180 },
+      ],
+    };
+
+    const scenarioRamps = {
+      "pasai-antxo": [
+        { x: 2920, y: 464, w: 180, dy: -84 },
+        { x: 7420, y: 464, w: 180, dy: -124 },
+      ],
+      "larratxo-altza": [
+        { x: 980, y: 464, w: 220, dy: -64 },
+        { x: 3180, y: 464, w: 220, dy: -94 },
+        { x: 7300, y: 448, w: 220, dy: -88 },
+      ],
+      "egia": [
+        { x: 3650, y: 464, w: 220, dy: -58 },
+      ],
+      "gros": [
+        { x: 420, y: 484, w: 180, dy: -94 },
+        { x: 6120, y: 464, w: 180, dy: -114 },
+      ],
+      "amara": [
+        { x: 90, y: 464, w: 210, dy: -94 },
+      ],
+      "parte-vieja": [
+        { x: 1320, y: 464, w: 180, dy: -84 },
+        { x: 4040, y: 480, w: 260, dy: -110 },
+      ],
+    };
+
     function drawLandmarks() {
       if (!gameStarted || !selectedScenario) return;
       const scenario = selectedScenario;
@@ -1116,7 +1292,7 @@
     }
 
     function drawLandmarkItem(sx, lm) {
-      const floor = floorY;
+      const floor = getFloorY(lm.x);
       switch (lm.type) {
         case "building":
           ctx.fillStyle = lm.color;
@@ -1153,9 +1329,9 @@
 
         case "hill":
           ctx.fillStyle = lm.color || "#1f5b36";
-          drawHill(sx - 80, floor - 75, 160, 80);
+          drawHill(sx - 80, floor - 75, 160, 80, floor);
           ctx.fillStyle = "#2a6b42";
-          drawHill(sx - 30, floor - 58, 120, 64);
+          drawHill(sx - 30, floor - 58, 120, 64, floor);
           break;
 
         case "crane":
@@ -1314,11 +1490,11 @@
       ctx.fillText(text.toUpperCase(), x + 14, y + 27);
     }
 
-    function drawHill(x, y, w, h) {
+    function drawHill(x, y, w, h, baseY = floorY) {
       ctx.beginPath();
       ctx.ellipse(x + w / 2, y, w / 2, h, 0, Math.PI, 0);
-      ctx.lineTo(x + w, floorY);
-      ctx.lineTo(x, floorY);
+      ctx.lineTo(x + w, baseY);
+      ctx.lineTo(x, baseY);
       ctx.closePath();
       ctx.fill();
     }
@@ -1338,7 +1514,7 @@
         ctx.setLineDash([10, 8]);
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, floorY);
+        ctx.lineTo(x, screen.groundY || floorY);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = "rgba(3, 12, 22, 0.68)";
@@ -1772,15 +1948,17 @@
 
     function drawWater() {
       if (waterLevel < 0.01) return;
-      const y = floorY - waterLevel;
-      const gradient = ctx.createLinearGradient(0, y, 0, H);
+      const baseY = getFloorY(cameraX + W / 2) - waterLevel;
+      const gradient = ctx.createLinearGradient(0, baseY, 0, H);
       gradient.addColorStop(0, "rgba(66,232,255,0.78)");
       gradient.addColorStop(1, "rgba(20,100,180,0.95)");
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.moveTo(0, H);
-      ctx.lineTo(0, y);
+      ctx.lineTo(0, getFloorY(cameraX) - waterLevel);
       for (let x = 0; x <= W; x += 24) {
+        const worldX = cameraX + x;
+        const y = getFloorY(worldX) - waterLevel;
         ctx.lineTo(x, y + Math.sin(performance.now() / 280 + x / 38) * 5);
       }
       ctx.lineTo(W, H);
@@ -1960,12 +2138,11 @@
 
     function specialLabel() {
       if (specialEvent?.type === "prost") return "Bocata del Prost: inmunidad";
-      if (specialEvent?.type === "debug") return "Modo informática: reparación remota";
       if (specialEvent?.type === "caravan") return "Caravana activada: velocidad";
       if (specialEvent?.type === "fishknife") return "Cuchillo de pescadero: daño x2.4";
       if (specialEvent?.type === "calm") return "Calma total: menos agua";
       if (specialEvent?.type === "birra") return "Birra del Kamio: inmunidad + velocidad";
-      if (specialEvent?.type === "rosario") return "Rosario: enemigos repelidos";
+      if (specialEvent?.type === "charo") return "Charo: enemigos repelidos";
       if (specialEvent?.type === "manifest") return "Manifestación: aliados y aturdimiento";
       if (specialEvent?.type === "hinchaSpecial") return "Gora Erreala!: enemigos aturdidos";
       return "Especial activo";
@@ -1987,6 +2164,12 @@
         if (type === "jump") { osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12); osc.start(); osc.stop(audioCtx.currentTime + 0.12); }
         if (type === "water") { osc.type = "sine"; osc.frequency.value = 100; gain.gain.value = 0.06; osc.start(); osc.stop(audioCtx.currentTime + 0.3); }
       } catch (e) { /* audio not available */ }
+    }
+
+    function getFloorY(worldX) {
+      if (!selectedScenario) return floorY;
+      const stage = clamp(Math.floor((worldX || 0) / W), 0, totalStages - 1);
+      return selectedScenario.screens[stage]?.groundY || floorY;
     }
 
     function clamp(value, min, max) {

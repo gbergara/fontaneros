@@ -23,7 +23,7 @@ const characters = [
     repairMod: 2,
     jumpMod: 0.9,
     floodMod: 1,
-    notes: ["Velocidad equilibrada", "Especial: Modo informática", "Reparación remota"]
+    notes: ["Velocidad equilibrada", "Especial: Pagar con Cash", "Camarero peligroso"]
   },
   {
     id: "david",
@@ -88,7 +88,7 @@ const characters = [
     repairMod: 1.3,
     jumpMod: 0.7,
     floodMod: 0.92,
-    notes: ["Movimiento lento pero constante", "Los enemigos la respetan", "Especial: Rosario protector"]
+    notes: ["Movimiento lento pero constante", "Los enemigos la respetan", "Especial: Charo protector"]
   },
   {
     id: "alcalde",
@@ -158,7 +158,7 @@ const toolSets = {
   mariKarmen: [
     { id: "wrench", name: "Paraguas", key: "1", description: "Golpe suave pero seguro", damage: 1.2, cooldown: 0.55, range: 58 },
     { id: "plunger", name: "Bolso", key: "2", description: "Lanza objetos a distancia", damage: 1.5, cooldown: 0.72, range: 340 },
-    { id: "tape", name: "Rosario", key: "3", description: "Reza y repara a distancia", damage: 0, cooldown: 0.92, range: 110 }
+    { id: "tape", name: "Charo", key: "3", description: "Charla y repara a distancia", damage: 0, cooldown: 0.92, range: 110 }
   ],
   alcalde: [
     { id: "wrench", name: "Micrófono", key: "1", description: "Discurso contundente", damage: 2.4, cooldown: 0.7, range: 68 },
