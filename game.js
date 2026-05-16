@@ -103,7 +103,6 @@
       selectedScenario = scenario;
       scenarioScreen.classList.add("hidden");
       resetGame();
-      setBackground(selectedScenario);
       gameStarted = true;
       lastTime = performance.now();
       requestAnimationFrame(loop);
@@ -171,13 +170,7 @@
         drains.push({
           x: areaStart + randomRange(180, W - 180),
           y: floorY - 10,
-          clogged: stage === 1 ? randomRange(0, 0.15) : randomRange(0.35, 0.72) * screen.difficulty,
-          repairedFlash: 0
-        });
-        drains.push({
-          x: areaStart + randomRange(200, W - 160),
-          y: floorY - 10,
-          clogged: Math.max(0, randomRange(0.05, 0.25) * screen.difficulty - 0.1),
+          clogged: randomRange(0.35, 0.72) * screen.difficulty,
           repairedFlash: 0
         });
         spawnEnemies(screen, areaStart, stage);
@@ -245,7 +238,7 @@
       const openDrainPower = drains.reduce((sum, drain) => Math.abs(drain.x - player.x) < W * 1.1 && drain.clogged <= 0 ? sum + 1 : sum, 0);
       const sunDrain = sunTimer > 0 ? 12 : 0;
       const calmDrain = specialEvent?.type === "calm" ? 4.5 : 0;
-      const drainRate = 2.5 + repairedRatio * 5.5 + openDrainPower * 3.0 + (totalLeak < 0.8 ? 3.2 : 0) + sunDrain + calmDrain;
+      const drainRate = 0.9 + repairedRatio * 3.8 + openDrainPower * 2.2 + (totalLeak < 0.8 ? 2.0 : 0) + sunDrain + calmDrain;
       waterLevel = Math.max(0, waterLevel + floodRate * dt - drainRate * dt);
       if (waterLevel >= 122) {
         waterLevel = 122;
@@ -680,7 +673,8 @@
 
     function draw() {
       ctx.clearRect(0, 0, W, H);
-      drawMinimalGround();
+      drawBackground();
+      drawLandmarks();
       drawZoneOverlay();
       drawDrains();
       drawPipes();
@@ -699,13 +693,93 @@
       if (gameOver) drawGameOver();
     }
 
-    function drawMinimalGround() {
+    function drawBackground() {
       const scenario = selectedScenario || scenarios[0];
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, hexToRgba(scenario.sky, 0.28));
+      sky.addColorStop(1, "rgba(9, 19, 31, 0.55)");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+
       ctx.fillStyle = hexToRgba(scenario.ground, 0.55);
       ctx.fillRect(0, floorY, W, H - floorY);
       ctx.fillStyle = "#20354b";
       const tileOffset = -(cameraX % 64);
       for (let x = tileOffset; x < W; x += 64) ctx.fillRect(x, floorY, 44, 10);
+    }
+
+    function drawLandmarks() {
+      if (!gameStarted || !selectedScenario) return;
+      const scenario = selectedScenario;
+      const stage = currentStage;
+      const screen = currentScreen();
+
+      if (scenario.id === "pasai-antxo") {
+        const baseX = 420;
+        ctx.fillStyle = "#8b3a1f";
+        ctx.fillRect(baseX, floorY - 180, 160, 180);
+        ctx.fillStyle = "#a84522";
+        ctx.fillRect(baseX - 10, floorY - 190, 180, 16);
+        ctx.fillStyle = "#f5e6c8";
+        ctx.font = "900 22px system-ui";
+        ctx.fillText("PROST", baseX + 32, floorY - 114);
+        ctx.fillStyle = "#2a1810";
+        ctx.fillRect(baseX + 10, floorY - 140, 140, 3);
+        ctx.fillStyle = "#ffd166";
+        ctx.fillRect(baseX + 16, floorY - 90, 38, 20);
+        ctx.fillRect(baseX + 60, floorY - 90, 38, 20);
+        ctx.fillRect(baseX + 104, floorY - 90, 38, 20);
+        ctx.fillStyle = "rgba(255,209,102,0.25)";
+        ctx.fillRect(baseX - 20, floorY - 8, 200, 8);
+        ctx.fillStyle = "#e8d5b0";
+        ctx.font = "800 11px system-ui";
+        ctx.fillText("BOCATA DEL PROST", baseX + 14, floorY - 54);
+        drawStreetSign(screen.name, 48, 316, "#ffd166");
+        return;
+      }
+
+      if (scenario.id === "astigarraga") {
+        ctx.fillStyle = "#1f5b36";
+        drawHill(0, 395, 260, 90);
+        drawHill(400, 390, 300, 100);
+        ctx.fillStyle = "#6f4422";
+        ctx.fillRect(640 - stage * 4, 300, 130, 80);
+        ctx.fillStyle = "#3b2113";
+        ctx.beginPath();
+        ctx.moveTo(630 - stage * 4, 300);
+        ctx.lineTo(780 - stage * 4, 300);
+        ctx.lineTo(750 - stage * 4, 272);
+        ctx.lineTo(660 - stage * 4, 272);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#ffd166";
+        ctx.font = "800 14px system-ui";
+        ctx.fillText("SAGARDO ETXEA", 666 - stage * 4, 342);
+        drawStreetSign(screen.name, 48, 316, "#ffd166");
+        return;
+      }
+
+      drawStreetSign(screen.name, 48, 316, "#9cecff");
+    }
+
+    function drawStreetSign(text, x, y, color) {
+      ctx.fillStyle = "rgba(2, 9, 18, 0.72)";
+      ctx.fillRect(x, y, 230, 42);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, 230, 42);
+      ctx.fillStyle = color;
+      ctx.font = "900 16px system-ui";
+      ctx.fillText(text.toUpperCase(), x + 14, y + 27);
+    }
+
+    function drawHill(x, y, w, h) {
+      ctx.beginPath();
+      ctx.ellipse(x + w / 2, y, w / 2, h, 0, Math.PI, 0);
+      ctx.lineTo(x + w, floorY);
+      ctx.lineTo(x, floorY);
+      ctx.closePath();
+      ctx.fill();
     }
 
 

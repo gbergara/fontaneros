@@ -261,30 +261,8 @@
       max-height: calc(100vh - 48px);
       border: 1px solid rgba(255, 255, 255, 0.16);
       border-radius: 28px;
-      background: transparent;
+      background: #081927;
       box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
-    }
-
-    #bgImage {
-      position: absolute;
-      inset: clamp(12px, 2vw, 24px);
-      z-index: 0;
-      overflow: hidden;
-      border-radius: 28px;
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      filter: saturate(0.95) contrast(1.05) brightness(0.65);
-      background-color: #081927;
-    }
-
-    #bgImage::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: 1;
-      pointer-events: none;
-      background: linear-gradient(180deg, rgba(5, 13, 24, 0.15), rgba(5, 13, 24, 0.25));
     }
 
     .hud-note {
