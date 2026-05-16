@@ -652,14 +652,14 @@
         nearest.leak = Math.max(0, nearest.leak - repairPower * dt);
         nearest.repairedFlash = 0.16;
       } else {
-        const wasClogged = nearestDrain.clogged > 0;
+        const origClogged = nearestDrain.clogged;
         nearestDrain.clogged = Math.max(0, nearestDrain.clogged - repairPower * 0.75 * dt);
         nearestDrain.repairedFlash = 0.16;
-        if (wasClogged && nearestDrain.clogged <= 0) {
+        if (origClogged > 0 && nearestDrain.clogged <= 0) {
           showNotice("¡SUMIDERO LIMPIO!", 2.0);
           playSound("repair");
         }
-        waterLevel = Math.max(0, waterLevel - 1.9 * (1 + nearestDrain.clogged * 2) * dt);
+        waterLevel = Math.max(0, waterLevel - 3.5 * (1 + origClogged * 3) * dt);
       }
       const comboMult = 1 + (comboCount > 1 ? (comboCount - 1) * 0.15 : 0);
       score += 18 * repairPower * dt * comboMult;
@@ -2060,6 +2060,7 @@
     function showRankingScreen() {
       characterScreen.classList.add("hidden");
       rankingScreen.classList.remove("hidden");
+      loadRecords();
       renderRanking();
     }
 
