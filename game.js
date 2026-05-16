@@ -680,7 +680,7 @@
 
     function draw() {
       ctx.clearRect(0, 0, W, H);
-      drawBackground();
+      drawMinimalGround();
       drawZoneOverlay();
       drawDrains();
       drawPipes();
@@ -699,111 +699,16 @@
       if (gameOver) drawGameOver();
     }
 
-    function drawBackground() {
+    function drawMinimalGround() {
       const scenario = selectedScenario || scenarios[0];
-      const sky = ctx.createLinearGradient(0, 0, 0, H);
-      sky.addColorStop(0, hexToRgba(scenario.sky, 0.28));
-      sky.addColorStop(1, "rgba(9, 19, 31, 0.55)");
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, W, H);
-
-      drawStreetViewBackdrop(scenario);
-      drawScenarioLandmarks(scenario);
-
-      ctx.fillStyle = hexToRgba(scenario.ground, 0.62);
+      ctx.fillStyle = hexToRgba(scenario.ground, 0.55);
       ctx.fillRect(0, floorY, W, H - floorY);
       ctx.fillStyle = "#20354b";
       const tileOffset = -(cameraX % 64);
       for (let x = tileOffset; x < W; x += 64) ctx.fillRect(x, floorY, 44, 10);
     }
 
-    function drawStreetViewBackdrop(scenario) {
-      const vanishingX = W / 2 + Math.sin(cameraX / 620) * 70;
-      const horizonY = 258;
-      const palette = streetViewPalette(scenario.id);
 
-      ctx.save();
-      ctx.fillStyle = "rgba(4, 10, 18, 0.08)";
-      ctx.fillRect(0, 0, W, floorY);
-      ctx.fillStyle = palette.road;
-      ctx.beginPath();
-      ctx.moveTo(vanishingX - 34, horizonY);
-      ctx.lineTo(vanishingX + 34, horizonY);
-      ctx.lineTo(W + 180, floorY);
-      ctx.lineTo(-180, floorY);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.34)";
-      ctx.lineWidth = 4;
-      for (let i = -3; i <= 3; i++) {
-        const baseX = W / 2 + i * 120 - (cameraX % 120);
-        ctx.beginPath();
-        ctx.moveTo(vanishingX, horizonY + 10);
-        ctx.lineTo(baseX, floorY);
-        ctx.stroke();
-      }
-
-      ctx.strokeStyle = "rgba(255, 209, 102, 0.58)";
-      ctx.lineWidth = 5;
-      for (let y = horizonY + 18; y < floorY; y += 44) {
-        const t = (y - horizonY) / (floorY - horizonY);
-        ctx.beginPath();
-        ctx.moveTo(vanishingX - 7 * t, y);
-        ctx.lineTo(vanishingX + 7 * t, y + 18 * t);
-        ctx.stroke();
-      }
-
-      drawPerspectiveSide("left", palette, vanishingX, horizonY);
-      drawPerspectiveSide("right", palette, vanishingX, horizonY);
-
-      ctx.fillStyle = "rgba(3, 12, 22, 0.62)";
-      ctx.fillRect(18, 154, 188, 28);
-      ctx.fillStyle = "#f5fbff";
-      ctx.font = "900 13px system-ui";
-      ctx.fillText("VISTA CALLE SIMULADA", 32, 173);
-      ctx.restore();
-    }
-
-    function drawPerspectiveSide(side, palette, vanishingX, horizonY) {
-      const dir = side === "left" ? -1 : 1;
-      for (let i = 0; i < 7; i++) {
-        const depth = i / 6;
-        const nearY = floorY - i * 30;
-        const farY = Math.max(horizonY + 20, nearY - 92 + depth * 28);
-        const nearX = dir < 0 ? -18 + i * 22 : W + 18 - i * 22;
-        const farX = vanishingX + dir * (92 + i * 18);
-        const width = 72 + (6 - i) * 16;
-        const height = 70 + ((i + currentStage) % 3) * 28;
-
-        ctx.fillStyle = i % 2 === 0 ? palette.buildingA : palette.buildingB;
-        ctx.beginPath();
-        ctx.moveTo(nearX, nearY);
-        ctx.lineTo(nearX + dir * width, nearY);
-        ctx.lineTo(farX + dir * 36, farY - height * 0.35);
-        ctx.lineTo(farX, farY - height);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = palette.window;
-        for (let w = 0; w < 3; w++) {
-          const wx = nearX + dir * (18 + w * 20);
-          ctx.fillRect(wx, nearY - 46, dir * 10, 10);
-          ctx.fillRect(wx, nearY - 24, dir * 10, 10);
-        }
-      }
-    }
-
-    function streetViewPalette(id) {
-      if (id === "pasai-antxo") return { road: "rgba(35, 47, 58, 0.96)", buildingA: "rgba(166, 95, 52, 0.9)", buildingB: "rgba(41, 62, 80, 0.92)", window: "rgba(127, 220, 255, 0.82)" };
-      if (id === "astigarraga") return { road: "rgba(78, 58, 38, 0.94)", buildingA: "rgba(97, 65, 35, 0.9)", buildingB: "rgba(38, 91, 55, 0.86)", window: "rgba(255, 209, 102, 0.82)" };
-      if (id === "larratxo-altza") return { road: "rgba(43, 49, 68, 0.96)", buildingA: "rgba(74, 83, 103, 0.94)", buildingB: "rgba(55, 63, 83, 0.94)", window: "rgba(217, 199, 255, 0.82)" };
-      if (id === "egia") return { road: "rgba(48, 42, 48, 0.96)", buildingA: "rgba(179, 93, 58, 0.92)", buildingB: "rgba(36, 80, 82, 0.88)", window: "rgba(255, 207, 159, 0.82)" };
-      if (id === "gros") return { road: "rgba(45, 55, 66, 0.96)", buildingA: "rgba(219, 184, 106, 0.88)", buildingB: "rgba(43, 94, 120, 0.9)", window: "rgba(129, 232, 255, 0.82)" };
-      if (id === "amara") return { road: "rgba(54, 56, 64, 0.96)", buildingA: "rgba(91, 120, 104, 0.88)", buildingB: "rgba(74, 84, 98, 0.92)", window: "rgba(169, 207, 255, 0.82)" };
-      if (id === "parte-vieja") return { road: "rgba(55, 43, 40, 0.98)", buildingA: "rgba(154, 90, 45, 0.9)", buildingB: "rgba(93, 61, 51, 0.92)", window: "rgba(255, 202, 120, 0.82)" };
-      return { road: "rgba(42, 52, 68, 0.96)", buildingA: "rgba(58, 77, 101, 0.92)", buildingB: "rgba(42, 57, 78, 0.92)", window: "rgba(156, 236, 255, 0.82)" };
-    }
 
     function drawZoneOverlay() {
       if (!gameStarted || !selectedScenario) return;
@@ -829,162 +734,7 @@
       }
     }
 
-    function drawScenarioLandmarks(scenario) {
-      const screen = gameStarted && selectedScenario ? currentScreen() : scenario.screens[0];
-      const stage = gameStarted ? currentStage : 1;
-      if (scenario.id === "astigarraga") {
-        ctx.fillStyle = "#1f5b36";
-        drawHill(-80, 385, 260, 90);
-        drawHill(170, 388, 330, 120);
-        drawHill(560, 382, 300, 105);
-        ctx.fillStyle = "#6f4422";
-        ctx.fillRect(610 - stage * 8, 306, 175, 92);
-        ctx.fillStyle = "#3b2113";
-        ctx.beginPath();
-        ctx.moveTo(592 - stage * 8, 306);
-        ctx.lineTo(800 - stage * 8, 306);
-        ctx.lineTo(758 - stage * 8, 270);
-        ctx.lineTo(632 - stage * 8, 270);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = "#ffd166";
-        ctx.font = "800 18px system-ui";
-        ctx.fillText(stage >= 10 ? "TXOTX FINAL" : "TXOTX", 636 - stage * 8, 352);
-        drawStreetSign(screen.name, 54, 326, "#ffd166");
-      } else if (scenario.id === "pasai-antxo") {
-        ctx.fillStyle = "#0b4c68";
-        ctx.fillRect(0, 382, W, 82);
-        ctx.strokeStyle = "#d18742";
-        ctx.lineWidth = 7;
-        for (const x of [120, 380, 710]) {
-          ctx.beginPath();
-          ctx.moveTo(x, 382);
-          ctx.lineTo(x + 34, 220);
-          ctx.lineTo(x + 92, 382);
-          ctx.moveTo(x + 28, 250);
-          ctx.lineTo(x + 118, 250);
-          ctx.stroke();
-        }
-        ctx.fillStyle = "#23344b";
-        ctx.fillRect(500, 342, 280, 42);
-        ctx.fillStyle = "#c46f38";
-        for (let i = 0; i < 5; i++) ctx.fillRect(522 + i * 48, 314, 34, 28);
-        drawStreetSign(screen.name, 48, 324, "#7fdcff");
-        if (stage >= 6) drawBeacon(835, 300);
-      } else if (scenario.id === "larratxo-altza") {
-        ctx.fillStyle = "#384258";
-        for (let i = 0; i < 7; i++) {
-          const x = 55 + i * 122;
-          const h = 94 + (i % 3) * 34;
-          ctx.fillRect(x, floorY - h, 78, h);
-          ctx.fillStyle = "rgba(255, 214, 118, 0.7)";
-          for (let y = floorY - h + 18; y < floorY - 18; y += 24) {
-            ctx.fillRect(x + 14, y, 12, 10);
-            ctx.fillRect(x + 48, y, 12, 10);
-          }
-          ctx.fillStyle = "#384258";
-        }
-        ctx.strokeStyle = "rgba(255,255,255,0.08)";
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(0, 420);
-        ctx.lineTo(260, 356);
-        ctx.lineTo(520, 392);
-        ctx.lineTo(960, 318);
-        ctx.stroke();
-        drawStreetSign(screen.name, 48, 316, "#d9c7ff");
-      } else {
-        if (scenario.id === "egia") {
-          ctx.fillStyle = "#18445a";
-          ctx.fillRect(0, 386, W, 78);
-          ctx.fillStyle = "#c26f42";
-          ctx.fillRect(585, 270, 190, 118);
-          ctx.fillStyle = "#8f402d";
-          for (let x = 605; x < 760; x += 34) {
-            ctx.fillRect(x, 292, 18, 22);
-            ctx.fillRect(x, 330, 18, 22);
-          }
-          ctx.fillStyle = "#d9e0e8";
-          ctx.fillRect(558, 252, 238, 22);
-          ctx.fillStyle = "#1d6b45";
-          drawHill(54, 394, 260, 84);
-          drawHill(250, 400, 230, 72);
-          ctx.strokeStyle = "#b7c4cf";
-          ctx.lineWidth = 7;
-          ctx.beginPath();
-          ctx.moveTo(0, 352);
-          ctx.lineTo(W, 314 - stage * 2);
-          ctx.stroke();
-          drawStreetSign(screen.name, 48, 318, "#ffcf9f");
-        } else {
-        ctx.fillStyle = "#2d3f58";
-        for (let i = 0; i < 8; i++) {
-          const x = 38 + i * 118;
-          const h = 72 + ((i + stage) % 4) * 24;
-          ctx.fillRect(x, floorY - h, 72, h);
-          ctx.fillStyle = "rgba(174, 232, 255, 0.72)";
-          for (let y = floorY - h + 16; y < floorY - 12; y += 22) {
-            ctx.fillRect(x + 12, y, 12, 9);
-            ctx.fillRect(x + 42, y, 12, 9);
-          }
-          ctx.fillStyle = "#2d3f58";
-        }
-        ctx.strokeStyle = "#9aa9bf";
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.moveTo(0, 390);
-        ctx.lineTo(W, 330 - stage * 3);
-        ctx.stroke();
-        ctx.fillStyle = "#1a2433";
-        ctx.fillRect(640, 326, 210, 62);
-        ctx.fillStyle = "#39b6c8";
-        ctx.font = "800 16px system-ui";
-        ctx.fillText("INTXAURRONDO", 666, 363);
-        drawStreetSign(screen.name, 48, 318, "#9cecff");
-        }
-      }
 
-      ctx.strokeStyle = "rgba(255,255,255,0.045)";
-      ctx.lineWidth = 1;
-      for (let x = 0; x < W; x += 48) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x + 80, H);
-        ctx.stroke();
-      }
-    }
-
-    function drawStreetSign(text, x, y, color) {
-      ctx.fillStyle = "rgba(2, 9, 18, 0.72)";
-      ctx.fillRect(x, y, 230, 42);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x, y, 230, 42);
-      ctx.fillStyle = color;
-      ctx.font = "900 16px system-ui";
-      ctx.fillText(text.toUpperCase(), x + 14, y + 27);
-    }
-
-    function drawBeacon(x, y) {
-      const pulse = Math.sin(performance.now() / 120) * 0.35 + 0.65;
-      ctx.save();
-      ctx.shadowColor = "#ffd166";
-      ctx.shadowBlur = 20 * pulse;
-      ctx.fillStyle = "#ffd166";
-      ctx.beginPath();
-      ctx.arc(x, y, 12, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    function drawHill(x, y, w, h) {
-      ctx.beginPath();
-      ctx.ellipse(x + w / 2, y, w / 2, h, 0, Math.PI, 0);
-      ctx.lineTo(x + w, floorY);
-      ctx.lineTo(x, floorY);
-      ctx.closePath();
-      ctx.fill();
-    }
 
     function drawPipes() {
       for (const pipe of pipes) {
