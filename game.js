@@ -234,11 +234,11 @@
       const totalLeak = pipes.reduce((sum, pipe) => Math.abs(pipe.x - player.x) < W * 0.85 ? sum + pipe.leak : sum, 0);
       const repairedRatio = pipes.length ? pipes.filter(pipe => pipe.leak <= 0).length / pipes.length : 0;
       const calmFloodMod = specialEvent?.type === "calm" ? 0.55 : 1;
-      const floodRate = 0.45 * selectedCharacter.floodMod * selectedScenario.floodMod * stageDifficulty() * Math.min(totalLeak, 2.1) * calmFloodMod;
+      const floodRate = 0.7 * selectedCharacter.floodMod * selectedScenario.floodMod * stageDifficulty() * Math.min(totalLeak, 2.1) * calmFloodMod;
       const openDrainPower = drains.reduce((sum, drain) => Math.abs(drain.x - player.x) < W * 1.1 && drain.clogged <= 0 ? sum + 1 : sum, 0);
       const sunDrain = sunTimer > 0 ? 12 : 0;
       const calmDrain = specialEvent?.type === "calm" ? 4.5 : 0;
-      const drainRate = 0.9 + repairedRatio * 3.8 + openDrainPower * 2.2 + (totalLeak < 0.8 ? 2.0 : 0) + sunDrain + calmDrain;
+      const drainRate = 0.12 + repairedRatio * 2.5 + openDrainPower * 1.8 + (totalLeak < 0.8 ? 1.2 : 0) + sunDrain + calmDrain;
       waterLevel = Math.max(0, waterLevel + floodRate * dt - drainRate * dt);
       if (waterLevel >= 122) {
         waterLevel = 122;
@@ -1121,7 +1121,7 @@
     }
 
     function drawWater() {
-      if (waterLevel < 0.5) return;
+      if (waterLevel < 0.01) return;
       const y = floorY - waterLevel;
       const gradient = ctx.createLinearGradient(0, y, 0, H);
       gradient.addColorStop(0, "rgba(66,232,255,0.78)");
