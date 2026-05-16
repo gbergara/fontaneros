@@ -102,6 +102,7 @@
       selectedScenario = scenario;
       scenarioScreen.classList.add("hidden");
       resetGame();
+      syncMapToScenario(selectedScenario, 0);
       gameStarted = true;
       lastTime = performance.now();
       requestAnimationFrame(loop);
@@ -367,6 +368,7 @@
       player.x = clamp(player.x, 16, worldWidth - player.w - 16);
       cameraX = clamp(player.x + player.w / 2 - W / 2, 0, worldWidth - W);
       currentStage = clamp(Math.floor((player.x + player.w / 2) / W) + 1, 1, totalStages);
+      syncMapToScenario(selectedScenario, player.x / Math.max(1, worldWidth - player.w));
 
       if (allPipesSealed()) {
         scenarioComplete = true;
@@ -629,14 +631,14 @@
     function drawBackground() {
       const scenario = selectedScenario || scenarios[0];
       const sky = ctx.createLinearGradient(0, 0, 0, H);
-      sky.addColorStop(0, scenario.sky);
-      sky.addColorStop(1, "#09131f");
+      sky.addColorStop(0, hexToRgba(scenario.sky, 0.48));
+      sky.addColorStop(1, "rgba(9, 19, 31, 0.74)");
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, W, H);
 
       drawScenarioLandmarks(scenario);
 
-      ctx.fillStyle = scenario.ground;
+      ctx.fillStyle = hexToRgba(scenario.ground, 0.78);
       ctx.fillRect(0, floorY, W, H - floorY);
       ctx.fillStyle = "#20354b";
       const tileOffset = -(cameraX % 64);
@@ -1231,6 +1233,14 @@
 
     function randomRange(min, max) {
       return Math.random() * (max - min) + min;
+    }
+
+    function hexToRgba(hex, alpha) {
+      const value = hex.replace("#", "");
+      const r = parseInt(value.slice(0, 2), 16);
+      const g = parseInt(value.slice(2, 4), 16);
+      const b = parseInt(value.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
     function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {

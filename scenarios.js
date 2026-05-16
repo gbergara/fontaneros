@@ -18,6 +18,7 @@ const scenarios = [
     floodMod: 0.94,
     leakMod: 0.96,
     dropSpeedMod: 0.96,
+    map: { center: [43.2815684, -1.9474769], zoom: 15, drift: [0.010, 0.024] },
     pipeY: [98, 132, 92, 128, 102, 136],
     screens: makeScreens([
       ["Entrada de Ergobia", "Primeras fugas junto al camino hacia Astigarraga."],
@@ -44,6 +45,7 @@ const scenarios = [
     floodMod: 1.14,
     leakMod: 1.12,
     dropSpeedMod: 1.16,
+    map: { center: [43.3171948, -1.9179836], zoom: 16, drift: [0.006, 0.018] },
     pipeY: [76, 120, 84, 126, 78, 118],
     screens: makeScreens([
       ["Pasai Antxo Renfe", "Arranque junto a la estación y Nafarroa etorbidea."],
@@ -70,6 +72,7 @@ const scenarios = [
     floodMod: 1.04,
     leakMod: 1,
     dropSpeedMod: 1.04,
+    map: { center: [43.3141417, -1.9390155], zoom: 16, drift: [0.006, 0.018] },
     pipeY: [138, 82, 146, 90, 132, 78],
     screens: makeScreens([
       ["Larratxo Parkea", "Inicio entre árboles y bloques altos."],
@@ -96,6 +99,7 @@ const scenarios = [
     floodMod: 1.08,
     leakMod: 1.06,
     dropSpeedMod: 1.1,
+    map: { center: [43.3141100, -1.9531242], zoom: 16, drift: [0.006, 0.018] },
     pipeY: [110, 86, 126, 92, 140, 78],
     screens: makeScreens([
       ["Intxaurrondo Hegoa", "Primer tramo del barrio con tuberías medias."],
@@ -122,6 +126,7 @@ const scenarios = [
     floodMod: 1.1,
     leakMod: 1.08,
     dropSpeedMod: 1.08,
+    map: { center: [43.3173500, -1.9771000], zoom: 16, drift: [0.006, 0.018] },
     pipeY: [124, 88, 136, 96, 118, 78],
     screens: makeScreens([
       ["Tabakalera", "La antigua fábrica cultural vibra con tuberías altas."],
@@ -148,6 +153,7 @@ const scenarios = [
     floodMod: 1.16,
     leakMod: 1.1,
     dropSpeedMod: 1.12,
+    map: { center: [43.3224000, -1.9730000], zoom: 16, drift: [0.006, 0.018] },
     pipeY: [92, 124, 80, 134, 104, 146],
     screens: makeScreens([
       ["Zurriola", "El oleaje empuja el agua hacia la red."],
@@ -174,6 +180,7 @@ const scenarios = [
     floodMod: 1.05,
     leakMod: 1.04,
     dropSpeedMod: 1.04,
+    map: { center: [43.3059000, -1.9806000], zoom: 15, drift: [0.007, 0.020] },
     pipeY: [118, 96, 138, 84, 126, 104],
     screens: makeScreens([
       ["Anoeta", "La presión sube bajo el estadio."],
@@ -200,6 +207,7 @@ const scenarios = [
     floodMod: 1.2,
     leakMod: 1.16,
     dropSpeedMod: 1.08,
+    map: { center: [43.3231000, -1.9869000], zoom: 17, drift: [0.004, 0.012] },
     pipeY: [78, 112, 88, 132, 96, 144],
     screens: makeScreens([
       ["Boulevard", "Entrada con mucho tránsito."],
