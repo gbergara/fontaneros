@@ -44,6 +44,16 @@
     let caffeineTimer = 0;
     let sunTimer = 0;
     let specialEvent = null;
+    let paused = false;
+    let pauseKeyDown = false;
+    let comboTimer = 0;
+    let comboCount = 0;
+    let deathCause = "";
+    let hasRepaired = false;
+    let hasRepairTooltip = false;
+    let highScore = parseInt(localStorage.getItem("pipepanic_highscore") || "0");
+    let clouds = [];
+    let audioCtx = null;
 
     function renderCharacterCards() {
       characterCards.innerHTML = "";
@@ -119,6 +129,13 @@
       currentToolIndex = 0;
       attackCooldown = 0;
       hurtTimer = 0;
+      paused = false;
+      pauseKeyDown = false;
+      comboTimer = 0;
+      comboCount = 0;
+      deathCause = "";
+      hasRepaired = false;
+      hasRepairTooltip = false;
       loadWorld();
     }
 
@@ -133,6 +150,18 @@
         grounded: false,
         facing: 1
       };
+      clouds = [];
+      const scenario = selectedScenario || scenarios[0];
+      const skyBright = parseInt(scenario.sky.slice(1, 3), 16) > 50;
+      for (let i = 0; i < 8; i++) {
+        clouds.push({
+          x: randomRange(-200, worldWidth + 200),
+          y: randomRange(30, 180),
+          w: randomRange(70, 140),
+          speed: randomRange(4, 12) * (skyBright ? 1 : 0.4),
+          alpha: randomRange(0.1, 0.25),
+        });
+      }
       pipes.length = 0;
       drops.length = 0;
       particles.length = 0;
@@ -150,7 +179,6 @@
       gameOver = false;
       nextEventAt = randomRange(20, 30);
 
-      const scenario = selectedScenario || scenarios[0];
       for (let stage = 1; stage <= totalStages; stage++) {
         const screen = scenario.screens[stage - 1];
         const pipeCount = screen.pipeCount;
@@ -200,12 +228,30 @@
           flying
         });
       }
+      if (stage === totalStages) {
+        enemies.push({
+          type: "boss",
+          x: areaStart + W / 2,
+          y: floorY - 100,
+          w: 56,
+          h: 80,
+          vx: 0,
+          hp: 15,
+          damage: 2,
+          hitFlash: 0,
+          stun: 0,
+          flying: false,
+          attackTimer: 2,
+        });
+      }
     }
 
     function loop(now) {
       const dt = Math.min((now - lastTime) / 1000, 0.033);
       lastTime = now;
-      update(dt);
+      if (keys.has("Escape") && !pauseKeyDown) { paused = !paused; pauseKeyDown = true; }
+      if (!keys.has("Escape")) pauseKeyDown = false;
+      if (!paused) update(dt);
       draw();
       if (gameStarted) requestAnimationFrame(loop);
     }
@@ -214,12 +260,18 @@
       if (eventNotice.timer > 0) eventNotice.timer -= dt;
       if (gameOver) {
         if (keys.has("Enter")) {
+          if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("pipepanic_highscore", String(Math.floor(score)));
+          }
           characterScreen.classList.remove("hidden");
           scenarioScreen.classList.add("hidden");
           gameStarted = false;
         }
         return;
       }
+
+      if (paused) return;
 
       updateEvents(dt);
       updatePlayer(dt);
@@ -243,8 +295,16 @@
       if (waterLevel >= 122) {
         waterLevel = 122;
         gameOver = true;
+        deathCause = "agua";
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem("pipepanic_highscore", String(Math.floor(score)));
+        }
         showNotice("¡TALLER INUNDADO! Pulsa Enter", 99);
       }
+
+      if (comboTimer > 0) comboTimer -= dt;
+      else comboCount = 0;
     }
 
     function allPipesSealed() {
@@ -409,6 +469,7 @@
       if (jump && player.grounded) {
         player.vy = maxJump;
         player.grounded = false;
+        playSound("jump");
       }
 
       player.vy += 1180 * dt;
@@ -449,6 +510,7 @@
         const knifeRange = specialEvent?.type === "fishknife" ? 1.35 : 1;
         hitEnemiesInRange(tool.range * knifeRange, tool.damage * knifeMod, 0.2);
         addToolSpark(player.x + player.w / 2 + player.facing * 34, player.y + 38, "#ffd166");
+        playSound("hit");
       } else if (tool.id === "plunger") {
         projectiles.push({
           x: player.x + player.w / 2,
@@ -457,6 +519,7 @@
           life: 0.95,
           damage: tool.damage
         });
+        playSound("shoot");
       } else {
         hitEnemiesInRange(tool.range, 0, 1.8);
         if (repairTarget) {
@@ -470,6 +533,7 @@
           score += 12;
         }
         addToolSpark(player.x + player.w / 2, player.y + 34, "#73ff9f");
+        playSound("repair");
       }
     }
 
@@ -507,6 +571,11 @@
 
       const rustyMod = activeEvent && activeEvent.type === "tools" ? 0.5 : 1;
       const repairPower = 0.62 * selectedCharacter.repairMod * rustyMod;
+      if (!hasRepaired) hasRepaired = true;
+      if (!hasRepairTooltip) hasRepairTooltip = true;
+      comboTimer = 3;
+      comboCount++;
+
       if (nearest) {
         nearest.leak = Math.max(0, nearest.leak - repairPower * dt);
         nearest.repairedFlash = 0.16;
@@ -515,11 +584,15 @@
         nearestDrain.repairedFlash = 0.16;
         waterLevel = Math.max(0, waterLevel - 1.9 * dt);
       }
-      score += 18 * repairPower * dt;
+      const comboMult = 1 + (comboCount > 1 ? (comboCount - 1) * 0.15 : 0);
+      score += 18 * repairPower * dt * comboMult;
 
       for (let i = 0; i < 2; i++) {
         particles.push({ x: repairTarget.x + randomRange(-16, 16), y: (repairTarget.y || floorY) + 22, vx: randomRange(-42, 42), vy: randomRange(-110, -40), life: 0.35, color: "#ffd166" });
       }
+
+      if (comboCount > 1) playSound("combo");
+      else playSound("repair");
     }
 
     function nearestLeakingPipe(range) {
@@ -605,6 +678,22 @@
           if (enemy.x < areaStart + 38 || enemy.x + enemy.w > areaStart + W - 38) enemy.vx *= -1;
         }
 
+        if (enemy.type === "boss") {
+          enemy.attackTimer -= dt;
+          if (enemy.attackTimer <= 0 && Math.abs(enemy.x - player.x) < W * 0.7) {
+            projectiles.push({
+              x: enemy.x,
+              y: enemy.y + 40,
+              vx: (player.x - enemy.x > 0 ? 1 : -1) * 180,
+              life: 2,
+              damage: 1.5
+            });
+            enemy.attackTimer = 1.8 + Math.random();
+          }
+          const bossBob = Math.sin(performance.now() / 200) * 15;
+          enemy.y = floorY - 100 + bossBob;
+        }
+
         if (hurtTimer <= 0 && rectsOverlap(player.x, player.y, player.w, player.h, enemy.x, enemy.y, enemy.w, enemy.h)) {
           if (specialEvent?.type === "prost") {
             enemy.stun = Math.max(enemy.stun, 1.2);
@@ -617,8 +706,14 @@
           player.vx = -Math.sign(enemy.vx || 1) * 220;
           player.vy = -180;
           showNotice("¡GOLPE!", 0.8);
+          playSound("hurt");
           if (playerHealth <= 0) {
             gameOver = true;
+            deathCause = "enemigo";
+            if (score > highScore) {
+              highScore = score;
+              localStorage.setItem("pipepanic_highscore", String(Math.floor(score)));
+            }
             showNotice("¡FUERA DE SERVICIO! Pulsa Enter", 99);
           }
         }
@@ -674,6 +769,7 @@
     function draw() {
       ctx.clearRect(0, 0, W, H);
       drawBackground();
+      drawSkyDetails();
       drawLandmarks();
       drawZoneOverlay();
       drawDrains();
@@ -691,6 +787,7 @@
       drawNotice();
       if (!gameStarted) drawAttract();
       if (gameOver) drawGameOver();
+      if (paused) drawPauseOverlay();
     }
 
     function drawBackground() {
@@ -708,6 +805,37 @@
       for (let x = tileOffset; x < W; x += 64) ctx.fillRect(x, floorY, 44, 8);
       ctx.fillStyle = "#101a26";
       ctx.fillRect(0, floorY, W, 3);
+    }
+
+    function drawSkyDetails() {
+      if (!gameStarted || clouds.length === 0) return;
+      for (const cloud of clouds) {
+        const sx = visibleX(cloud.x - cameraX * cloud.speed * 0.006);
+        if (sx < -cloud.w - 40 || sx > W + 40) continue;
+        ctx.globalAlpha = cloud.alpha;
+        ctx.fillStyle = "#dbeaf2";
+        ctx.beginPath();
+        ctx.ellipse(sx, cloud.y, cloud.w / 2, cloud.w * 0.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(sx - cloud.w * 0.25, cloud.y + 6, cloud.w * 0.3, cloud.w * 0.15, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(sx + cloud.w * 0.2, cloud.y + 4, cloud.w * 0.25, cloud.w * 0.13, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      if (Math.sin(performance.now() / 600) > 0.85) {
+        const birdX = visibleX((performance.now() * 0.02) % worldWidth);
+        ctx.fillStyle = "rgba(20,30,50,0.6)";
+        ctx.beginPath();
+        ctx.arc(birdX - 4, 100 + Math.sin(performance.now() / 180) * 15, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(birdX + 4, 105 + Math.sin(performance.now() / 180 + 1) * 15, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     const scenarioLandmarks = {
@@ -1073,8 +1201,9 @@
     function drawPipes() {
       for (const pipe of pipes) {
         if (!isVisible(pipe.x)) continue;
+        const sx = visibleX(pipe.x);
         ctx.save();
-        ctx.translate(visibleX(pipe.x), pipe.y);
+        ctx.translate(sx, pipe.y);
         ctx.fillStyle = pipe.repairedFlash > 0 ? "#ffd166" : "#7b96a6";
         ctx.fillRect(-28, -12, 56, 26);
         ctx.fillRect(-12, 8, 24, 56);
@@ -1090,6 +1219,23 @@
           ctx.fill();
         }
         ctx.restore();
+
+        if (repairTarget === pipe) {
+          const barW = 56;
+          const ratio = 1 - pipe.leak / (0.42 * pipe.difficulty);
+          ctx.fillStyle = "rgba(3,12,22,0.75)";
+          ctx.fillRect(sx - barW / 2 - 2, pipe.y - 30, barW + 4, 10);
+          ctx.fillStyle = "#ffd166";
+          ctx.fillRect(sx - barW / 2, pipe.y - 28, barW * Math.min(1, ratio), 6);
+        }
+
+        if (!hasRepaired && pipe.leak > 0 && Math.abs(pipe.x - player.x) < 80) {
+          ctx.fillStyle = "rgba(255,209,102,0.9)";
+          ctx.font = "800 12px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("Pulsa E para reparar", sx, pipe.y - 50);
+          ctx.textAlign = "left";
+        }
       }
     }
 
@@ -1110,10 +1256,23 @@
           ctx.stroke();
         }
         if (drain.clogged <= 0) {
-          ctx.fillStyle = "rgba(66,232,255,0.36)";
+          const t = performance.now() / 280;
+          ctx.fillStyle = "rgba(66,232,255,0.3)";
           ctx.beginPath();
-          ctx.arc(0, 0, 34 + Math.sin(performance.now() / 140) * 4, 0, Math.PI * 2);
+          ctx.arc(0, 0, 24 + Math.sin(t) * 6, 0, Math.PI * 2);
           ctx.fill();
+          ctx.fillStyle = "rgba(66,232,255,0.15)";
+          ctx.beginPath();
+          ctx.arc(0, 0, 16 + Math.cos(t * 0.7) * 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(66,232,255,0.25)";
+          ctx.lineWidth = 1;
+          for (let i = 0; i < 3; i++) {
+            const angle = t + i * 2.1;
+            ctx.beginPath();
+            ctx.arc(0, 0, 10 + Math.sin(t * 2 + i) * 8, angle - 0.3, angle + 0.3);
+            ctx.stroke();
+          }
         }
         ctx.restore();
       }
@@ -1249,6 +1408,26 @@
           ctx.font = "900 15px system-ui";
           ctx.fillText("♪", enemy.w + 8, 6);
           ctx.fillText("♫", -14, 24);
+        } else if (enemy.type === "boss") {
+          ctx.fillStyle = enemy.hitFlash > 0 ? "#ffffff" : "#7c4dff";
+          ctx.fillRect(0, 0, enemy.w, enemy.h - 20);
+          ctx.fillStyle = "#101018";
+          ctx.fillRect(4, 0, enemy.w - 8, 16);
+          ctx.fillStyle = "#ff5a6d";
+          ctx.fillRect(8, 18, 8, 6);
+          ctx.fillRect(enemy.w - 16, 18, 8, 6);
+          ctx.fillStyle = "#ffd166";
+          ctx.fillRect(12, 30, enemy.w - 24, 8);
+          ctx.strokeStyle = "rgba(124,77,255,0.6)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(enemy.w / 2, enemy.h / 2, 50 + Math.sin(performance.now() / 90) * 6, 0, Math.PI * 2);
+          ctx.stroke();
+          const hpRatio = Math.max(0, enemy.hp / 15);
+          ctx.fillStyle = "rgba(3,12,22,0.8)";
+          ctx.fillRect(-4, -18, enemy.w + 8, 10);
+          ctx.fillStyle = hpRatio > 0.5 ? "#73ff9f" : hpRatio > 0.25 ? "#ffd166" : "#ff5a6d";
+          ctx.fillRect(-2, -16, (enemy.w + 4) * hpRatio, 6);
         } else {
           ctx.fillRect(4, 4, enemy.w - 8, enemy.h - 4);
           ctx.fillStyle = "#ffd166";
@@ -1296,6 +1475,7 @@
       if (type === "knife") return "#2d2a33";
       if (type === "dj") return "#7c4dff";
       if (type === "dog") return "#8b5a2b";
+      if (type === "boss") return "#7c4dff";
       return "#9a5d2e";
     }
 
@@ -1306,6 +1486,7 @@
       if (type === "knife") return "Segarro";
       if (type === "dj") return "DJ Brayan";
       if (type === "drone") return "Dron averiado";
+      if (type === "boss") return "JEFE DEL BARRIO";
       return "Gremlin de óxido";
     }
 
@@ -1313,8 +1494,10 @@
       const c = selectedCharacter || characters[1];
       const x = player ? visibleX(player.x) : 80;
       const y = player ? player.y : floorY - 58;
+      const walking = player && Math.abs(player.vx) > 20 && player.grounded;
+      const bob = walking ? Math.sin(performance.now() / 80 * (specialEvent?.type === "caravan" ? 1.6 : 1)) : 0;
       ctx.save();
-      ctx.translate(x + player.w / 2, y);
+      ctx.translate(x + player.w / 2, y + bob * 2);
       ctx.scale(player.facing, 1);
 
       ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -1322,6 +1505,7 @@
       ctx.ellipse(0, player.h + 5, 24, 7, 0, 0, Math.PI * 2);
       ctx.fill();
 
+      const legSwing = walking ? Math.sin(performance.now() / 80) * 4 : 0;
       ctx.fillStyle = "#f0b47a";
       ctx.fillRect(-13, 13, 26, 27);
       ctx.fillStyle = c.cap;
@@ -1330,11 +1514,11 @@
       ctx.fillStyle = c.overalls;
       ctx.fillRect(-16, 39, 32, 28);
       ctx.fillStyle = "#f4c182";
-      ctx.fillRect(-24, 42, 9, 20);
-      ctx.fillRect(15, 42, 9, 20);
+      ctx.fillRect(-24 + legSwing, 42, 9, 20);
+      ctx.fillRect(15 - legSwing, 42, 9, 20);
       ctx.fillStyle = "#151821";
-      ctx.fillRect(-16, 66, 12, 10);
-      ctx.fillRect(4, 66, 12, 10);
+      ctx.fillRect(-16 + legSwing * 0.5, 66, 12, 10);
+      ctx.fillRect(4 - legSwing * 0.5, 66, 12, 10);
       ctx.fillStyle = "#101018";
       ctx.fillRect(2, 24, 5, 4);
       ctx.fillRect(12, 24, 9, 5);
@@ -1403,9 +1587,9 @@
       const scenario = selectedScenario || scenarios[0];
       const screen = currentScreen();
       ctx.fillStyle = "rgba(3, 12, 22, 0.72)";
-      ctx.fillRect(18, 16, 430, 130);
+      ctx.fillRect(18, 16, 430, 156);
       ctx.strokeStyle = "rgba(255,255,255,0.12)";
-      ctx.strokeRect(18, 16, 430, 130);
+      ctx.strokeRect(18, 16, 430, 156);
       ctx.fillStyle = "#f5fbff";
       ctx.font = "700 18px system-ui";
       ctx.fillText(`${selectedCharacter.name} - ${selectedCharacter.title}`, 34, 43);
@@ -1419,6 +1603,14 @@
       const effect = sunTimer > 0 ? "Solazo activo: el agua baja rápido" : allPipesSealed() ? "Barrio completo" : reggaetonSlowActive() ? "Reggaetón cerca: velocidad reducida" : activeEvent ? eventLabel(activeEvent.type) : caffeineTimer > 0 ? "Cafeína activa" : "Explora el mapa y repara averías";
       ctx.fillText(effect, 34, 132);
 
+      if (comboCount > 1) {
+        ctx.fillStyle = "#ffd166";
+        ctx.font = "900 14px system-ui";
+        ctx.fillText(`Combo x${comboCount}`, 34, 156);
+        ctx.fillStyle = "rgba(255,209,102,0.3)";
+        ctx.fillRect(34, 160, Math.min(120, comboTimer / 3 * 120), 4);
+      }
+
       if (specialEvent) {
         ctx.fillStyle = "#ffd166";
         ctx.font = "900 13px system-ui";
@@ -1430,9 +1622,9 @@
       ctx.fillText(screen.detail, 472, 38);
 
       ctx.fillStyle = "rgba(3, 12, 22, 0.72)";
-      ctx.fillRect(W - 286, 16, 268, 126);
+      ctx.fillRect(W - 286, 16, 268, 148);
       ctx.strokeStyle = "rgba(255,255,255,0.12)";
-      ctx.strokeRect(W - 286, 16, 268, 126);
+      ctx.strokeRect(W - 286, 16, 268, 148);
       ctx.fillStyle = "#f5fbff";
       ctx.font = "800 15px system-ui";
       ctx.fillText(`Vida: ${"♥".repeat(Math.max(0, playerHealth))}`, W - 268, 44);
@@ -1442,9 +1634,26 @@
       ctx.fillStyle = "#dbeaf2";
       ctx.font = "700 12px system-ui";
       ctx.fillText(tool.description, W - 268, 91);
+
+      const cooldownRatio = tool.cooldown > 0 ? attackCooldown / tool.cooldown : 0;
+      if (cooldownRatio > 0) {
+        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(W - 22, 75, 12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = "#ffd166";
+        ctx.beginPath();
+        ctx.arc(W - 22, 75, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - cooldownRatio));
+        ctx.stroke();
+      }
+
       ctx.fillStyle = "#9cb8c9";
       ctx.fillText("1 Llave: cuerpo a cuerpo", W - 268, 112);
       ctx.fillText("2 Desatascador: distancia · 3 Cinta: control", W - 268, 130);
+      ctx.fillStyle = "#657788";
+      ctx.font = "600 11px system-ui";
+      ctx.fillText(`Récord: ${Math.floor(highScore)}`, W - 268, 150);
 
       if (repairTarget) {
         ctx.fillStyle = "rgba(255,209,102,0.92)";
@@ -1474,11 +1683,41 @@
       ctx.textAlign = "center";
       ctx.fillStyle = scenarioComplete ? "#73ff9f" : "#ff5a6d";
       ctx.font = "900 54px system-ui";
-      ctx.fillText(scenarioComplete ? "¡BARRIO COMPLETADO!" : "¡TALLER INUNDADO!", W / 2, 246);
+      ctx.fillText(scenarioComplete ? "¡BARRIO COMPLETADO!" : "¡TALLER INUNDADO!", W / 2, 220);
       ctx.fillStyle = "#f5fbff";
+      ctx.font = "700 18px system-ui";
+      if (!scenarioComplete) {
+        ctx.fillStyle = deathCause === "agua" ? "#42e8ff" : "#ff5a6d";
+        ctx.fillText(deathCause === "agua" ? "Te tragó el agua" : "Te noquearon", W / 2, 256);
+        ctx.fillStyle = "#f5fbff";
+      }
       ctx.font = "700 20px system-ui";
-      ctx.fillText(`Puntuación final: ${Math.floor(score)}`, W / 2, 286);
-      ctx.fillText("Pulsa Enter para volver a elegir personaje", W / 2, 318);
+      ctx.fillText(`Puntuación final: ${Math.floor(score)}`, W / 2, 290);
+      const isNew = score > highScore && !scenarioComplete;
+      if (isNew) {
+        ctx.fillStyle = "#ffd166";
+        ctx.font = "900 16px system-ui";
+        ctx.fillText("¡NUEVO RÉCORD!", W / 2, 322);
+      }
+      ctx.fillStyle = "#9cb8c9";
+      ctx.font = "600 14px system-ui";
+      ctx.fillText(`Récord anterior: ${Math.floor(highScore)}`, W / 2, 348);
+      ctx.fillStyle = "#f5fbff";
+      ctx.font = "700 18px system-ui";
+      ctx.fillText("Pulsa Enter para volver a elegir personaje", W / 2, 380);
+      ctx.textAlign = "left";
+    }
+
+    function drawPauseOverlay() {
+      ctx.fillStyle = "rgba(4, 8, 16, 0.55)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#f5fbff";
+      ctx.font = "900 48px system-ui";
+      ctx.fillText("PAUSA", W / 2, 270);
+      ctx.fillStyle = "#9cb8c9";
+      ctx.font = "600 18px system-ui";
+      ctx.fillText("Pulsa Escape para continuar", W / 2, 310);
       ctx.textAlign = "left";
     }
 
@@ -1501,6 +1740,24 @@
       if (specialEvent?.type === "blueprint") return "Plano técnico: limpia sumideros";
       if (specialEvent?.type === "calm") return "Calma total: menos agua";
       return "Especial activo";
+    }
+
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        gain.gain.value = 0.08;
+        if (type === "repair") { osc.frequency.value = 880; gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1); osc.start(); osc.stop(audioCtx.currentTime + 0.1); }
+        if (type === "combo") { osc.frequency.value = 660; gain.gain.value = 0.12; osc.start(); osc.stop(audioCtx.currentTime + 0.15); }
+        if (type === "hit") { osc.frequency.value = 220; gain.gain.value = 0.1; osc.start(); osc.stop(audioCtx.currentTime + 0.08); }
+        if (type === "shoot") { osc.type = "sawtooth"; osc.frequency.value = 440; gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12); osc.start(); osc.stop(audioCtx.currentTime + 0.12); }
+        if (type === "hurt") { osc.type = "square"; osc.frequency.value = 150; gain.gain.value = 0.1; osc.start(); osc.stop(audioCtx.currentTime + 0.15); }
+        if (type === "jump") { osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12); osc.start(); osc.stop(audioCtx.currentTime + 0.12); }
+        if (type === "water") { osc.type = "sine"; osc.frequency.value = 100; gain.gain.value = 0.06; osc.start(); osc.stop(audioCtx.currentTime + 0.3); }
+      } catch (e) { /* audio not available */ }
     }
 
     function clamp(value, min, max) {
