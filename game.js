@@ -710,58 +710,316 @@
       ctx.fillRect(0, floorY, W, 3);
     }
 
+    const scenarioLandmarks = {
+      "pasai-antxo": [
+        { x: 220, type: "station", color: "#7b96a6", accent: "#4d6677" },
+        { x: 540, type: "prost" },
+        { x: 1250, type: "building", w: 130, h: 160, color: "#c46f38", roof: "#8b4f28" },
+        { x: 1540, type: "building", w: 90, h: 120, color: "#a06030", roof: "#704020" },
+        { x: 2150, type: "ship", color: "#3a4a5a" },
+        { x: 3300, type: "crane" },
+        { x: 4250, type: "building", w: 120, h: 140, color: "#8b6f4a", roof: "#6b4f2a" },
+        { x: 5300, type: "tower", color: "#dbeaf2" },
+        { x: 6200, type: "building", w: 220, h: 90, color: "#5b6a78" },
+        { x: 6540, type: "building", w: 160, h: 80, color: "#4a5a68" },
+        { x: 7350, type: "sign", text: "PASARELA", color: "#ffd166" },
+        { x: 8200, type: "building", w: 160, h: 140, color: "#6f5a45", roof: "#4f3a25" },
+        { x: 9100, type: "tower", color: "#ff5a6d" },
+      ],
+      "astigarraga": [
+        { x: 250, type: "hill", color: "#1f5b36" },
+        { x: 600, type: "cider", color: "#6f4422", accent: "#3b2113" },
+        { x: 1300, type: "hill", color: "#2a6b42" },
+        { x: 2200, type: "sign", text: "SAGARDOETXEA", color: "#ffd166" },
+        { x: 3300, type: "cider", color: "#7a5030", accent: "#4a2a18" },
+        { x: 4300, type: "hill", color: "#1f5b36" },
+        { x: 5300, type: "sign", text: "TXOTX", color: "#ffd166" },
+        { x: 6300, type: "hill", color: "#2a6b42" },
+        { x: 7200, type: "tree", color: "#3a6b3a" },
+        { x: 8250, type: "cider", color: "#6f4422", accent: "#3b2113" },
+        { x: 9150, type: "hill", color: "#1f5b36" },
+      ],
+      "larratxo-altza": [
+        { x: 200, type: "tower", color: "#5b6478" },
+        { x: 550, type: "building", w: 100, h: 200, color: "#5b6478" },
+        { x: 1300, type: "tree", color: "#3a6b3a" },
+        { x: 1650, type: "tree", color: "#2a5b2a" },
+        { x: 2200, type: "building", w: 80, h: 180, color: "#4a5378" },
+        { x: 3300, type: "building", w: 100, h: 210, color: "#5b6478" },
+        { x: 4200, type: "tower", color: "#8792a8" },
+        { x: 5300, type: "building", w: 90, h: 190, color: "#4a5378" },
+        { x: 6200, type: "building", w: 110, h: 220, color: "#5b6478" },
+        { x: 7300, type: "tree", color: "#3a6b3a" },
+        { x: 8200, type: "tower", color: "#5b6478" },
+        { x: 9100, type: "building", w: 100, h: 200, color: "#4a5378" },
+      ],
+      "intxaurrondo": [
+        { x: 200, type: "station", color: "#8792a8", accent: "#5b6a78" },
+        { x: 600, type: "building", w: 90, h: 140, color: "#8792a8", roof: "#5b6a78" },
+        { x: 1250, type: "building", w: 110, h: 170, color: "#6a7888", roof: "#4a5878" },
+        { x: 2200, type: "tree", color: "#3a6b3a" },
+        { x: 3300, type: "tower", color: "#8792a8" },
+        { x: 4300, type: "building", w: 130, h: 150, color: "#6a7888", roof: "#4a5878" },
+        { x: 5300, type: "sign", text: "LARROTXENE", color: "#ffd166" },
+        { x: 6200, type: "building", w: 100, h: 180, color: "#8792a8" },
+        { x: 7200, type: "building", w: 80, h: 130, color: "#6a7888", roof: "#4a5878" },
+        { x: 8250, type: "tower", color: "#8792a8" },
+        { x: 9100, type: "building", w: 120, h: 160, color: "#6a7888", roof: "#4a5878" },
+      ],
+      "egia": [
+        { x: 150, type: "building", w: 200, h: 180, color: "#c26f42", roof: "#8b4f28" },
+        { x: 550, type: "sign", text: "TABAKALERA", color: "#ffd166" },
+        { x: 1200, type: "tree", color: "#3a7b3a" },
+        { x: 1650, type: "tree", color: "#4a8b4a" },
+        { x: 2200, type: "building", w: 160, h: 110, color: "#8b6f4a" },
+        { x: 3300, type: "building", w: 130, h: 150, color: "#c26f42", roof: "#8b4f28" },
+        { x: 4300, type: "building", w: 100, h: 130, color: "#7a5a38" },
+        { x: 5300, type: "tower", color: "#a06030" },
+        { x: 6200, type: "building", w: 140, h: 160, color: "#c26f42", roof: "#8b4f28" },
+        { x: 7200, type: "tree", color: "#3a7b3a" },
+        { x: 8200, type: "building", w: 120, h: 140, color: "#8b6f4a", roof: "#6b4f2a" },
+        { x: 9100, type: "building", w: 180, h: 170, color: "#c26f42", roof: "#8b4f28" },
+      ],
+      "gros": [
+        { x: 200, type: "cube", color: "#e0c27a", accent: "#dbeaf2" },
+        { x: 550, type: "sign", text: "KURSAAL", color: "#ffd166" },
+        { x: 1250, type: "sign", text: "ZURRIOLA", color: "#49c7ee" },
+        { x: 2200, type: "building", w: 140, h: 160, color: "#e0c27a", roof: "#b09858" },
+        { x: 3300, type: "building", w: 100, h: 180, color: "#c8a868" },
+        { x: 4250, type: "tower", color: "#e0c27a" },
+        { x: 5300, type: "building", w: 120, h: 150, color: "#d0b070", roof: "#b09858" },
+        { x: 6300, type: "cube", color: "#e0c27a", accent: "#dbeaf2" },
+        { x: 7200, type: "building", w: 90, h: 130, color: "#c8a868" },
+        { x: 8200, type: "building", w: 150, h: 170, color: "#e0c27a", roof: "#b09858" },
+        { x: 9100, type: "sign", text: "SAGÜES", color: "#49c7ee" },
+      ],
+      "amara": [
+        { x: 200, type: "stadium", color: "#5fbf72" },
+        { x: 1250, type: "building", w: 130, h: 160, color: "#5fbf72", roof: "#3a8f48" },
+        { x: 2200, type: "building", w: 100, h: 140, color: "#4aaf4f" },
+        { x: 3300, type: "tower", color: "#5fbf72" },
+        { x: 4250, type: "building", w: 120, h: 150, color: "#5fbf72", roof: "#3a8f48" },
+        { x: 5300, type: "sign", text: "PÍO XII", color: "#ffd166" },
+        { x: 6200, type: "building", w: 90, h: 180, color: "#4aaf4f" },
+        { x: 7200, type: "building", w: 140, h: 130, color: "#5fbf72", roof: "#3a8f48" },
+        { x: 8200, type: "tower", color: "#4aaf4f" },
+        { x: 9100, type: "building", w: 110, h: 160, color: "#5fbf72", roof: "#3a8f48" },
+      ],
+      "parte-vieja": [
+        { x: 150, type: "building", w: 180, h: 170, color: "#d48f4a", roof: "#a06030" },
+        { x: 550, type: "sign", text: "BOULEVARD", color: "#ffd166" },
+        { x: 1250, type: "building", w: 110, h: 200, color: "#c47f3a" },
+        { x: 2200, type: "tower", color: "#d48f4a" },
+        { x: 3300, type: "building", w: 130, h: 180, color: "#d48f4a", roof: "#a06030" },
+        { x: 4250, type: "building", w: 100, h: 160, color: "#c47f3a" },
+        { x: 5300, type: "ship", color: "#3a4a5a" },
+        { x: 6200, type: "building", w: 150, h: 190, color: "#d48f4a", roof: "#a06030" },
+        { x: 7200, type: "tower", color: "#c47f3a" },
+        { x: 8250, type: "building", w: 120, h: 170, color: "#d48f4a", roof: "#a06030" },
+        { x: 9100, type: "ship", color: "#3a4a5a" },
+      ],
+    };
+
     function drawLandmarks() {
       if (!gameStarted || !selectedScenario) return;
       const scenario = selectedScenario;
-      const stage = currentStage;
       const screen = currentScreen();
-
-      if (scenario.id === "pasai-antxo") {
-        const baseX = 420;
-        ctx.fillStyle = "#8b3a1f";
-        ctx.fillRect(baseX, floorY - 180, 160, 180);
-        ctx.fillStyle = "#a84522";
-        ctx.fillRect(baseX - 10, floorY - 190, 180, 16);
-        ctx.fillStyle = "#f5e6c8";
-        ctx.font = "900 22px system-ui";
-        ctx.fillText("PROST", baseX + 32, floorY - 114);
-        ctx.fillStyle = "#2a1810";
-        ctx.fillRect(baseX + 10, floorY - 140, 140, 3);
-        ctx.fillStyle = "#ffd166";
-        ctx.fillRect(baseX + 16, floorY - 90, 38, 20);
-        ctx.fillRect(baseX + 60, floorY - 90, 38, 20);
-        ctx.fillRect(baseX + 104, floorY - 90, 38, 20);
-        ctx.fillStyle = "rgba(255,209,102,0.25)";
-        ctx.fillRect(baseX - 20, floorY - 8, 200, 8);
-        ctx.fillStyle = "#e8d5b0";
-        ctx.font = "800 11px system-ui";
-        ctx.fillText("BOCATA DEL PROST", baseX + 14, floorY - 54);
-        drawStreetSign(screen.name, 48, 316, "#ffd166");
-        return;
+      const landmarks = scenarioLandmarks[scenario.id];
+      if (!landmarks) { drawStreetSign(screen.name, 48, 316, "#9cecff"); return; }
+      for (const lm of landmarks) {
+        if (!isVisible(lm.x)) continue;
+        drawLandmarkItem(visibleX(lm.x), lm, scenario);
       }
+      const signColor = scenario.id === "pasai-antxo" || scenario.id === "astigarraga" ? "#ffd166" : "#9cecff";
+      drawStreetSign(screen.name, 48, 316, signColor);
+    }
 
-      if (scenario.id === "astigarraga") {
-        ctx.fillStyle = "#1f5b36";
-        drawHill(0, 395, 260, 90);
-        drawHill(400, 390, 300, 100);
-        ctx.fillStyle = "#6f4422";
-        ctx.fillRect(640 - stage * 4, 300, 130, 80);
-        ctx.fillStyle = "#3b2113";
-        ctx.beginPath();
-        ctx.moveTo(630 - stage * 4, 300);
-        ctx.lineTo(780 - stage * 4, 300);
-        ctx.lineTo(750 - stage * 4, 272);
-        ctx.lineTo(660 - stage * 4, 272);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = "#ffd166";
-        ctx.font = "800 14px system-ui";
-        ctx.fillText("SAGARDO ETXEA", 666 - stage * 4, 342);
-        drawStreetSign(screen.name, 48, 316, "#ffd166");
-        return;
+    function drawLandmarkItem(sx, lm) {
+      const floor = floorY;
+      switch (lm.type) {
+        case "building":
+          ctx.fillStyle = lm.color;
+          ctx.fillRect(sx - lm.w / 2, floor - lm.h, lm.w, lm.h);
+          ctx.fillStyle = "rgba(255,209,102,0.25)";
+          for (let wy = 14; wy < lm.h - 14; wy += 30) {
+            for (let wx = 12; wx < lm.w - 16; wx += 32) {
+              ctx.fillRect(sx - lm.w / 2 + wx, floor - lm.h + wy, 10, 14);
+            }
+          }
+          if (lm.roof) {
+            ctx.fillStyle = lm.roof;
+            ctx.beginPath();
+            ctx.moveTo(sx - lm.w / 2 - 6, floor - lm.h);
+            ctx.lineTo(sx, floor - lm.h - 22);
+            ctx.lineTo(sx + lm.w / 2 + 6, floor - lm.h);
+            ctx.closePath();
+            ctx.fill();
+          }
+          break;
+
+        case "tower":
+          ctx.fillStyle = lm.color;
+          ctx.fillRect(sx - 12, floor - 220, 24, 220);
+          ctx.beginPath();
+          ctx.moveTo(sx - 18, floor - 220);
+          ctx.lineTo(sx, floor - 250);
+          ctx.lineTo(sx + 18, floor - 220);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,209,102,0.35)";
+          ctx.fillRect(sx - 5, floor - 180, 10, 16);
+          break;
+
+        case "hill":
+          ctx.fillStyle = lm.color || "#1f5b36";
+          drawHill(sx - 80, floor - 75, 160, 80);
+          ctx.fillStyle = "#2a6b42";
+          drawHill(sx - 30, floor - 58, 120, 64);
+          break;
+
+        case "crane":
+          ctx.strokeStyle = "#ffd166";
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.moveTo(sx, floor);
+          ctx.lineTo(sx, floor - 200);
+          ctx.lineTo(sx + 80, floor - 200);
+          ctx.stroke();
+          ctx.strokeStyle = "#b09840";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(sx + 60, floor - 200);
+          ctx.lineTo(sx + 80, floor - 214);
+          ctx.lineTo(sx + 80, floor - 186);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.fillStyle = "#ff5a6d";
+          ctx.beginPath();
+          ctx.arc(sx + 74, floor - 160, 5, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+
+        case "ship":
+          ctx.fillStyle = lm.color || "#3a4a5a";
+          ctx.beginPath();
+          ctx.moveTo(sx - 50, floor - 10);
+          ctx.lineTo(sx + 60, floor - 10);
+          ctx.lineTo(sx + 30, floor - 80);
+          ctx.lineTo(sx - 20, floor - 80);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "rgba(219,234,242,0.5)";
+          ctx.fillRect(sx - 10, floor - 70, 30, 40);
+          break;
+
+        case "station":
+          ctx.fillStyle = lm.color;
+          ctx.fillRect(sx - 50, floor - 100, 100, 100);
+          ctx.fillStyle = lm.accent || "#4d6677";
+          ctx.fillRect(sx - 60, floor - 110, 120, 14);
+          ctx.fillStyle = "rgba(255,209,102,0.3)";
+          ctx.fillRect(sx - 30, floor - 70, 20, 24);
+          ctx.fillRect(sx + 10, floor - 70, 20, 24);
+          ctx.fillStyle = lm.color;
+          ctx.fillRect(sx - 80, floor - 12, 160, 12);
+          break;
+
+        case "prost":
+          ctx.fillStyle = "#8b3a1f";
+          ctx.fillRect(sx - 60, floor - 160, 120, 160);
+          ctx.fillStyle = "#a84522";
+          ctx.fillRect(sx - 70, floor - 170, 140, 14);
+          ctx.fillStyle = "#f5e6c8";
+          ctx.font = "900 20px system-ui";
+          ctx.fillText("PROST", sx - 32, floor - 110);
+          ctx.fillStyle = "#2a1810";
+          ctx.fillRect(sx - 50, floor - 130, 100, 3);
+          ctx.fillStyle = "#ffd166";
+          ctx.fillRect(sx - 36, floor - 80, 24, 16);
+          ctx.fillRect(sx + 12, floor - 80, 24, 16);
+          ctx.fillStyle = "rgba(255,209,102,0.25)";
+          ctx.fillRect(sx - 60, floor - 8, 120, 8);
+          ctx.fillStyle = "#e8d5b0";
+          ctx.font = "800 10px system-ui";
+          ctx.fillText("BOCATA DEL PROST", sx - 42, floor - 50);
+          break;
+
+        case "cider":
+          ctx.fillStyle = lm.color;
+          ctx.fillRect(sx - 55, floor - 130, 110, 130);
+          ctx.fillStyle = lm.accent || "#3b2113";
+          ctx.beginPath();
+          ctx.moveTo(sx - 65, floor - 130);
+          ctx.lineTo(sx, floor - 155);
+          ctx.lineTo(sx + 65, floor - 130);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,209,102,0.25)";
+          ctx.fillRect(sx - 30, floor - 90, 20, 22);
+          ctx.fillRect(sx + 10, floor - 90, 20, 22);
+          ctx.fillStyle = "#ffd166";
+          ctx.font = "800 11px system-ui";
+          ctx.fillText("SAGARDO", sx - 28, floor - 28);
+          break;
+
+        case "tree":
+          ctx.fillStyle = lm.color || "#3a6b3a";
+          ctx.beginPath();
+          ctx.ellipse(sx, floor - 55, 28, 36, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#4a8b4a";
+          ctx.beginPath();
+          ctx.ellipse(sx + 4, floor - 65, 20, 26, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#4a3a2a";
+          ctx.fillRect(sx - 4, floor - 28, 8, 28);
+          break;
+
+        case "cube":
+          ctx.fillStyle = lm.color;
+          ctx.fillRect(sx - 45, floor - 110, 90, 110);
+          ctx.fillStyle = "rgba(255,255,255,0.12)";
+          ctx.fillRect(sx - 35, floor - 100, 70, 90);
+          ctx.fillStyle = "rgba(66,232,255,0.18)";
+          ctx.fillRect(sx - 25, floor - 90, 50, 70);
+          ctx.strokeStyle = lm.accent || "#dbeaf2";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(sx - 45, floor - 110, 90, 110);
+          break;
+
+        case "stadium":
+          ctx.fillStyle = lm.color;
+          ctx.beginPath();
+          ctx.ellipse(sx, floor - 80, 100, 80, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#3a8f48";
+          ctx.beginPath();
+          ctx.ellipse(sx, floor - 80, 80, 60, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,209,102,0.25)";
+          for (let i = -70; i <= 70; i += 22) {
+            ctx.fillRect(sx + i - 3, floor - 130, 6, 100);
+          }
+          break;
+
+        case "sign":
+          ctx.save();
+          ctx.translate(sx, floor - 10);
+          ctx.fillStyle = "rgba(2,9,18,0.7)";
+          ctx.fillRect(-4, -80, 8, 80);
+          ctx.fillStyle = "rgba(2,9,18,0.8)";
+          ctx.fillRect(-60, -80, 120, 26);
+          ctx.strokeStyle = lm.color || "#ffd166";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-60, -80, 120, 26);
+          ctx.fillStyle = lm.color || "#ffd166";
+          ctx.font = "800 12px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText(lm.text || "", 0, -62);
+          ctx.textAlign = "left";
+          ctx.restore();
+          break;
       }
-
-      drawStreetSign(screen.name, 48, 316, "#9cecff");
     }
 
     function drawStreetSign(text, x, y, color) {
