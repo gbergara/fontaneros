@@ -54,7 +54,7 @@ const characters = [
   {
     id: "eider",
     name: "Eider",
-    title: "La Ingeniera Ágil",
+    title: "La Kamio Rider",
     cap: "#d85cff",
     overalls: "#2ad4ff",
     accent: "#f0a6ff",
@@ -62,7 +62,7 @@ const characters = [
     repairMod: 1.08,
     jumpMod: 1.12,
     floodMod: 1,
-    notes: ["Muy ágil", "Salta mejor", "Repara un poco más rápido"]
+    notes: ["Muy ágil", "Salta mejor", "Especial: Birra del Kamio"]
   },
   {
     id: "usoa",
@@ -76,6 +76,46 @@ const characters = [
     jumpMod: 1,
     floodMod: 0.94,
     notes: ["Reparación excelente", "Reduce un poco la inundación", "Movimiento estable"]
+  },
+  {
+    id: "mariKarmen",
+    name: "Mari Karmen",
+    title: "La Jubilada",
+    cap: "#b08060",
+    overalls: "#c44060",
+    accent: "#f0a0b0",
+    speedMod: 0.72,
+    repairMod: 1.3,
+    jumpMod: 0.7,
+    floodMod: 0.92,
+    notes: ["Movimiento lento pero constante", "Los enemigos la respetan", "Especial: Rosario protector"]
+  },
+  {
+    id: "alcalde",
+    name: "Alcalde de Bildu",
+    title: "El Político",
+    cap: "#e03030",
+    overalls: "#202830",
+    accent: "#ff4a4a",
+    speedMod: 0.9,
+    repairMod: 0.55,
+    jumpMod: 0.85,
+    leakMod: 1.4,
+    floodMod: 1.25,
+    notes: ["Causa más averías en tuberías", "Mala reparación", "Especial: Manifestación"]
+  },
+  {
+    id: "hincha",
+    name: "Hincha de la Real",
+    title: "El Aficionado",
+    cap: "#1a4d8c",
+    overalls: "#0a2a5a",
+    accent: "#ffd700",
+    speedMod: 1.1,
+    repairMod: 0.8,
+    jumpMod: 1,
+    floodMod: 1.05,
+    notes: ["Grita Gora Erreala! y aturde enemigos", "Reparación regular", "Especial: Gora Erreala!"]
   }
 ];
 
@@ -114,5 +154,20 @@ const toolSets = {
     { id: "wrench", name: "Llave silenciosa", key: "1", description: "Golpe seguro cercano", damage: 1.7, cooldown: 0.48, range: 62 },
     { id: "plunger", name: "Paloma ventosa", key: "2", description: "Disparo suave con control", damage: 0.9, cooldown: 0.74, range: 430 },
     { id: "tape", name: "Kit de sellado", key: "3", description: "Repara mucho y aturde", damage: 0, cooldown: 1.15, range: 104 }
+  ],
+  mariKarmen: [
+    { id: "wrench", name: "Paraguas", key: "1", description: "Golpe suave pero seguro", damage: 1.2, cooldown: 0.55, range: 58 },
+    { id: "plunger", name: "Bolso", key: "2", description: "Lanza objetos a distancia", damage: 1.5, cooldown: 0.72, range: 340 },
+    { id: "tape", name: "Rosario", key: "3", description: "Reza y repara a distancia", damage: 0, cooldown: 0.92, range: 110 }
+  ],
+  alcalde: [
+    { id: "wrench", name: "Micrófono", key: "1", description: "Discurso contundente", damage: 2.4, cooldown: 0.7, range: 68 },
+    { id: "plunger", name: "Decreto", key: "2", description: "Firma y lanza", damage: 1.6, cooldown: 0.9, range: 360 },
+    { id: "tape", name: "Moción", key: "3", description: "Aturde con burocracia", damage: 0, cooldown: 1.4, range: 120 }
+  ],
+  hincha: [
+    { id: "wrench", name: "Bufanda", key: "1", description: "Golpe con la bufanda", damage: 1.5, cooldown: 0.45, range: 64 },
+    { id: "plunger", name: "Pito", key: "2", description: "Silbatazo a distancia", damage: 0.8, cooldown: 0.6, range: 400 },
+    { id: "tape", name: "Cántico", key: "3", description: "Aturde cantando", damage: 0, cooldown: 1.0, range: 140 }
   ]
 };

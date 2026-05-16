@@ -275,6 +275,53 @@
       pointer-events: none;
     }
 
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      text-align: left;
+    }
+    .ranking-table th {
+      color: var(--cyan);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 11px;
+      padding: 8px 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    .ranking-table td {
+      padding: 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      color: var(--text);
+    }
+    .ranking-table .rank {
+      color: var(--gold);
+      font-weight: 900;
+      font-size: 16px;
+      width: 32px;
+      text-align: center;
+    }
+    .ranking-table .score-cell {
+      color: var(--gold);
+      font-weight: 800;
+    }
+    .ranking-table .date-cell {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .ranking-empty {
+      color: var(--muted);
+      font-size: 18px;
+      padding: 40px 0;
+      text-align: center;
+    }
+    #rankingList {
+      max-height: 380px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+
     @media (max-width: 760px) {
       body { overflow: auto; }
       .shell { min-height: 100vh; }

@@ -6,6 +6,9 @@
     const scenarioCards = document.getElementById("scenarioCards");
     const scenarioSubtitle = document.getElementById("scenarioSubtitle");
     const backToCharacters = document.getElementById("backToCharacters");
+    const viewRanking = document.getElementById("viewRanking");
+    const rankingScreen = document.getElementById("rankingScreen");
+    const backToCharactersFromRanking = document.getElementById("backToCharactersFromRanking");
 
     const W = canvas.width;
     const H = canvas.height;
@@ -42,6 +45,7 @@
     let eventNotice = { text: "", timer: 0 };
     let coffee = null;
     let caffeineTimer = 0;
+    let waiter = null;
     let sunTimer = 0;
     let specialEvent = null;
     let paused = false;
@@ -51,9 +55,12 @@
     let deathCause = "";
     let hasRepaired = false;
     let hasRepairTooltip = false;
+    let recordSaved = false;
     let highScore = parseInt(localStorage.getItem("pipepanic_highscore") || "0");
+    let records = [];
     let clouds = [];
     let audioCtx = null;
+    let hinchaShoutTimer = 0;
 
     function renderCharacterCards() {
       characterCards.innerHTML = "";
@@ -136,6 +143,8 @@
       deathCause = "";
       hasRepaired = false;
       hasRepairTooltip = false;
+      recordSaved = false;
+      hinchaShoutTimer = 0;
       loadWorld();
     }
 
@@ -174,6 +183,7 @@
       eventNotice = { text: "", timer: 0 };
       coffee = null;
       caffeineTimer = 0;
+      waiter = null;
       sunTimer = 0;
       specialEvent = null;
       gameOver = false;
@@ -189,7 +199,7 @@
           pipes.push({
             x: areaStart + leftMargin + spacing * index,
             y: scenario.pipeY[index % scenario.pipeY.length] + randomRange(-10, 10),
-            leak: randomRange(0.18, 0.42) * scenario.leakMod * screen.difficulty,
+            leak: randomRange(0.18, 0.42) * (selectedCharacter?.leakMod || 1) * scenario.leakMod * screen.difficulty,
             difficulty: screen.difficulty,
             spawnTimer: randomRange(0, 1.5),
             repairedFlash: 0
@@ -208,24 +218,39 @@
 
     function spawnEnemies(screen, areaStart, stage) {
       const count = Math.min(6, Math.floor(stage / 2) + (stage >= 7 ? 1 : 0));
-      const types = ["rat", stage >= 3 ? "thief" : "rat", stage >= 5 ? "knife" : "dog", stage >= 7 ? "dj" : "rust", stage >= 8 ? "drone" : "rat"];
+      const scenarioId = selectedScenario?.id;
+      const isPasaiAntxo = scenarioId === "pasai-antxo";
+      const isAltza = scenarioId === "larratxo-altza";
+      const isAmara = scenarioId === "amara";
+      let types = ["rat", stage >= 3 ? "thief" : "rat", stage >= 5 ? "knife" : "dog", stage >= 7 ? "dj" : "rust", stage >= 8 ? "drone" : "rat"];
+      if (isPasaiAntxo) {
+        types = ["cockroach", ...types, "cockroach"];
+        const kroketasLandmarkX = 6950;
+        const nearKroketasLandmark = areaStart < kroketasLandmarkX + 200 && areaStart + W > kroketasLandmarkX - 200;
+        if (nearKroketasLandmark) types.push("kroketas");
+      }
+      if (isAltza && stage >= 3) { types.push("knife", "knife"); }
+      if (isAmara && stage >= 3) { types.push("dj", "dj"); }
       for (let i = 0; i < count; i++) {
         const type = types[i % types.length];
         const flying = type === "drone";
-        const enemyW = type === "rat" ? 34 : type === "dog" ? 38 : type === "dj" || type === "knife" || type === "thief" ? 34 : 42;
-        const enemyH = type === "rat" ? 22 : type === "dog" ? 24 : type === "dj" || type === "knife" || type === "thief" ? 58 : 36;
+        const enemyW = type === "rat" ? 34 : type === "cockroach" ? 18 : type === "kroketas" ? 32 : type === "dog" ? 38 : type === "dj" || type === "knife" || type === "thief" ? 34 : 42;
+        const enemyH = type === "rat" ? 22 : type === "cockroach" ? 12 : type === "kroketas" ? 56 : type === "dog" ? 24 : type === "dj" || type === "knife" || type === "thief" ? 58 : 36;
+        const cockroachSpeed = type === "cockroach" ? 1.7 : 1;
+        const isKroketas = type === "kroketas";
         enemies.push({
           type,
-          x: areaStart + randomRange(260, W - 110),
+          x: isKroketas ? areaStart + randomRange(120, W - 200) : areaStart + randomRange(260, W - 110),
           y: flying ? randomRange(170, 280) : floorY - enemyH,
           w: enemyW,
           h: enemyH,
-          vx: randomRange(42, 72) * (Math.random() > 0.5 ? 1 : -1) * screen.difficulty,
-          hp: type === "rust" ? 3 : type === "thief" || type === "knife" || type === "dj" ? 3 : 2,
-          damage: type === "knife" ? 2 : 1,
+          vx: isKroketas ? randomRange(22, 38) * (Math.random() > 0.5 ? 1 : -1) : randomRange(42, 72) * (Math.random() > 0.5 ? 1 : -1) * screen.difficulty * cockroachSpeed,
+          hp: type === "rust" ? 3 : type === "kroketas" ? 4 : type === "cockroach" ? 1 : type === "thief" || type === "knife" || type === "dj" ? 3 : 2,
+          damage: isKroketas ? 0 : type === "knife" ? 2 : type === "cockroach" ? 0.5 : 1,
           hitFlash: 0,
           stun: 0,
-          flying
+          flying,
+          attackTimer: isKroketas ? 1.5 + Math.random() : 0
         });
       }
       if (stage === totalStages) {
@@ -296,6 +321,7 @@
         waterLevel = 122;
         gameOver = true;
         deathCause = "agua";
+        if (!recordSaved) { saveRecord(); recordSaved = true; }
         if (score > highScore) {
           highScore = score;
           localStorage.setItem("pipepanic_highscore", String(Math.floor(score)));
@@ -305,6 +331,19 @@
 
       if (comboTimer > 0) comboTimer -= dt;
       else comboCount = 0;
+
+      if (selectedCharacter?.id === "hincha" && !gameOver) {
+        hinchaShoutTimer -= dt;
+        if (hinchaShoutTimer <= 0) {
+          hinchaShoutTimer = 3 + Math.random() * 2;
+          showNotice("¡GORA ERREALA!", 1.2);
+          for (const enemy of enemies) {
+            if (Math.abs(enemy.x - player.x) < 260) {
+              enemy.stun = Math.max(enemy.stun, 1.2);
+            }
+          }
+        }
+      }
     }
 
     function allPipesSealed() {
@@ -351,22 +390,36 @@
     }
 
     function updateCharacterSpecial(dt) {
-      if (specialEvent.type === "debug") {
-        const pipe = nearestLeakingPipe(520);
-        if (pipe) {
-          pipe.leak = Math.max(0, pipe.leak - 0.22 * dt);
-          pipe.repairedFlash = 0.12;
-          score += 6 * dt;
+      if (specialEvent.type === "cash") {
+        if (!waiter) {
+          waiter = { x: player.x + (Math.random() > 0.5 ? -1 : 1) * randomRange(350, 500), y: floorY - 64, w: 34, h: 60, vx: 0, hit: false };
+          waiter.x = clamp(waiter.x, 20, worldWidth - 20);
+        }
+        const dx = player.x - waiter.x;
+        waiter.vx = Math.sign(dx) * 140;
+        waiter.x += waiter.vx * dt;
+        if (Math.abs(dx) < 20 && !waiter.hit) {
+          playerHealth = Math.max(0, playerHealth - 1);
+          hurtTimer = 0.8;
+          player.vx = -Math.sign(dx) * 300;
+          player.vy = -160;
+          waiter.hit = true;
+          showNotice("¡TE ATRAPÓ EL CAMARERO!", 1.2);
+          playSound("hurt");
         }
       }
-      if (specialEvent.type === "blueprint") {
-        const drain = drains.find(item => item.clogged > 0 && Math.abs(item.x - player.x) < 460);
-        if (drain) drain.clogged = Math.max(0, drain.clogged - 0.14 * dt);
+      if (specialEvent.type === "rosario") {
+        for (const enemy of enemies) {
+          if (Math.abs(enemy.x - player.x) < 400) {
+            enemy.stun = Math.max(enemy.stun, 0.8);
+            enemy.vx *= Math.abs(enemy.vx) < 20 ? 1 : -1;
+          }
+        }
       }
     }
 
     function triggerRandomEvent() {
-      const eventPool = ["water", "tools", "coffee", "sun", "neighbor", "munipa", "special"];
+      const eventPool = ["water", "tools", "coffee", "sun", "neighbor", "munipa", "tamborrada", "special"];
       const eventName = eventPool[Math.floor(Math.random() * eventPool.length)];
       if (eventName === "water") {
         activeEvent = { type: "water", timer: 8 };
@@ -392,6 +445,10 @@
         spawnHelper("munipa");
         showNotice("EVENTO: ¡MUNIPA DE REFUERZO!", 3.2);
       }
+      if (eventName === "tamborrada") {
+        showNotice("EVENTO: ¡TAMBORRADA! Enemigos aturdidos", 3.2);
+        enemies.forEach(enemy => { enemy.stun = Math.max(enemy.stun, 5); });
+      }
       if (eventName === "special") triggerCharacterSpecial();
     }
 
@@ -401,8 +458,8 @@
         specialEvent = { type: "prost", timer: 120 };
         showNotice("URKO: ¡BOCATA DEL PROST! Inmunidad", 4);
       } else if (id === "gari") {
-        specialEvent = { type: "debug", timer: 18 };
-        showNotice("GARI: ¡MODO INFORMÁTICA! Reparación remota", 4);
+        specialEvent = { type: "cash", timer: 12 };
+        showNotice("GARI: ¡PAGAR CON CASH! Viene el camarero", 4);
       } else if (id === "david") {
         specialEvent = { type: "caravan", timer: 18 };
         showNotice("DAVID: ¡CARAVANA ACTIVADA!", 4);
@@ -410,11 +467,24 @@
         specialEvent = { type: "fishknife", timer: 16 };
         showNotice("PEDRO: ¡CUCHILLO DE PESCADERO!", 4);
       } else if (id === "eider") {
-        specialEvent = { type: "blueprint", timer: 20 };
-        showNotice("EIDER: ¡PLANO TÉCNICO!", 4);
+        specialEvent = { type: "birra", timer: 12 };
+        showNotice("EIDER: ¡BIRRA DEL KAMIO! Inmunidad total", 4);
       } else if (id === "usoa") {
         specialEvent = { type: "calm", timer: 22 };
         showNotice("USOA: ¡CALMA TOTAL!", 4);
+      } else if (id === "mariKarmen") {
+        specialEvent = { type: "rosario", timer: 14 };
+        showNotice("MARI KARMEN: ¡ROSARIO PROTECTOR!", 4);
+      } else if (id === "alcalde") {
+        specialEvent = { type: "manifest", timer: 10 };
+        showNotice("ALCALDE: ¡MANIFESTACIÓN! Aturde a todos", 4);
+        enemies.forEach(enemy => { enemy.stun = 4; });
+        spawnHelper("munipa");
+        spawnHelper("neighbor");
+      } else if (id === "hincha") {
+        specialEvent = { type: "hinchaSpecial", timer: 6 };
+        showNotice("HINCHA: ¡GORA ERREALA! Aturde a todos", 4);
+        enemies.forEach(enemy => { enemy.stun = Math.max(enemy.stun, 5); });
       }
     }
 
@@ -448,7 +518,8 @@
       const caffeineMod = caffeineTimer > 0 ? 2 : 1;
       const musicMod = reggaetonSlowActive() ? 0.72 : 1;
       const caravanMod = specialEvent?.type === "caravan" ? 1.9 : 1;
-      const moveSpeed = 210 * selectedCharacter.speedMod * caffeineMod * musicMod * caravanMod;
+      const birraMod = specialEvent?.type === "birra" ? 3.0 : 1;
+      const moveSpeed = 210 * selectedCharacter.speedMod * caffeineMod * musicMod * caravanMod * birraMod;
       const acceleration = player.grounded ? 2600 : 1550;
       const friction = player.grounded ? 1700 : 360;
       const maxJump = -485 * selectedCharacter.jumpMod;
@@ -482,6 +553,7 @@
       if (allPipesSealed()) {
         scenarioComplete = true;
         gameOver = true;
+        if (!recordSaved) { saveRecord(); recordSaved = true; }
         showNotice("¡BARRIO COMPLETADO!", 99);
         return;
       }
@@ -580,9 +652,14 @@
         nearest.leak = Math.max(0, nearest.leak - repairPower * dt);
         nearest.repairedFlash = 0.16;
       } else {
+        const wasClogged = nearestDrain.clogged > 0;
         nearestDrain.clogged = Math.max(0, nearestDrain.clogged - repairPower * 0.75 * dt);
         nearestDrain.repairedFlash = 0.16;
-        waterLevel = Math.max(0, waterLevel - 1.9 * dt);
+        if (wasClogged && nearestDrain.clogged <= 0) {
+          showNotice("¡SUMIDERO LIMPIO!", 2.0);
+          playSound("repair");
+        }
+        waterLevel = Math.max(0, waterLevel - 1.9 * (1 + nearestDrain.clogged * 2) * dt);
       }
       const comboMult = 1 + (comboCount > 1 ? (comboCount - 1) * 0.15 : 0);
       score += 18 * repairPower * dt * comboMult;
@@ -654,16 +731,49 @@
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const projectile = projectiles[i];
         projectile.x += projectile.vx * dt;
+        projectile.y += projectile.vy ? projectile.vy * dt : 0;
         projectile.life -= dt;
         let consumed = projectile.life <= 0 || projectile.x < -20 || projectile.x > worldWidth + 20;
-        for (let e = enemies.length - 1; e >= 0 && !consumed; e--) {
-          const enemy = enemies[e];
-          if (rectsOverlap(projectile.x - 8, projectile.y - 8, 16, 16, enemy.x, enemy.y, enemy.w, enemy.h)) {
-            damageEnemy(e, projectile.damage, 0.55);
+        if (!consumed && projectile.friendlyFire) {
+          const pSize = 12;
+          for (let e = enemies.length - 1; e >= 0; e--) {
+            const enemy = enemies[e];
+            if (rectsOverlap(projectile.x - pSize / 2, projectile.y - pSize / 2, pSize, pSize, enemy.x, enemy.y, enemy.w, enemy.h)) {
+              damageEnemy(e, projectile.damage, 0.15);
+              consumed = true;
+              break;
+            }
+          }
+          if (!consumed && hurtTimer <= 0 && rectsOverlap(projectile.x - pSize / 2, projectile.y - pSize / 2, pSize, pSize, player.x, player.y, player.w, player.h)) {
+            playerHealth = Math.max(0, playerHealth - projectile.damage);
+            hurtTimer = 0.6;
+            player.vx = -Math.sign(projectile.vx) * 180;
+            player.vy = -120;
+            playSound("hurt");
+            if (playerHealth <= 0) {
+              gameOver = true;
+              deathCause = "enemigo";
+              if (!recordSaved) { saveRecord(); recordSaved = true; }
+              if (score > highScore) { highScore = score; localStorage.setItem("pipepanic_highscore", String(Math.floor(score))); }
+              showNotice("¡FUERA DE SERVICIO! Pulsa Enter", 99);
+            }
             consumed = true;
           }
+        } else {
+          for (let e = enemies.length - 1; e >= 0 && !consumed; e--) {
+            const enemy = enemies[e];
+            if (rectsOverlap(projectile.x - 8, projectile.y - 8, 16, 16, enemy.x, enemy.y, enemy.w, enemy.h)) {
+              damageEnemy(e, projectile.damage, 0.55);
+              consumed = true;
+            }
+          }
         }
-        if (consumed) projectiles.splice(i, 1);
+        if (consumed) {
+          if (projectile.friendlyFire) {
+            for (let p = 0; p < 4; p++) particles.push({ x: projectile.x, y: projectile.y, vx: randomRange(-50, 50), vy: randomRange(-60, -10), life: 0.3, color: "#e8c840" });
+          }
+          projectiles.splice(i, 1);
+        }
       }
     }
 
@@ -694,13 +804,42 @@
           enemy.y = floorY - 100 + bossBob;
         }
 
+        if (enemy.type === "kroketas") {
+          enemy.attackTimer -= dt;
+          if (enemy.attackTimer <= 0) {
+            const target = Math.random() > 0.5 ? player : (enemies.length > 1 ? enemies[Math.floor(Math.random() * enemies.length)] : player);
+            const tx = target.x + (target.w || 0) / 2;
+            const ty = target.y + (target.h || 0) / 2;
+            const dx = tx - enemy.x;
+            const dy = ty - (enemy.y + 28);
+            const dist = Math.hypot(dx, dy) || 1;
+            projectiles.push({
+              x: enemy.x + enemy.w / 2, y: enemy.y + 28,
+              vx: (dx / dist) * 160 + randomRange(-30, 30),
+              vy: (dy / dist) * 160 + randomRange(-40, -10),
+              life: 1.8,
+              damage: 0.8,
+              friendlyFire: true,
+              color: "#e8c840"
+            });
+            enemy.attackTimer = 2 + Math.random() * 1.5;
+          }
+          if (Math.random() < 0.02) enemy.vx *= -1;
+        }
+
+        const isMariKarmen = selectedCharacter?.id === "mariKarmen";
+        if (isMariKarmen && Math.abs(enemy.x - player.x) < 300) {
+          enemy.stun = Math.max(enemy.stun, 0.5);
+        }
+
         if (hurtTimer <= 0 && rectsOverlap(player.x, player.y, player.w, player.h, enemy.x, enemy.y, enemy.w, enemy.h)) {
-          if (specialEvent?.type === "prost") {
+          if (specialEvent?.type === "prost" || specialEvent?.type === "birra") {
             enemy.stun = Math.max(enemy.stun, 1.2);
             enemy.vx *= -1;
-            showNotice("¡BOCATA DEL PROST! Daño bloqueado", 0.8);
+            showNotice(specialEvent?.type === "birra" ? "¡BIRRA DEL KAMIO! Inmunidad" : "¡BOCATA DEL PROST! Daño bloqueado", 0.8);
             continue;
           }
+          if (isMariKarmen) continue;
           playerHealth -= enemy.damage || 1;
           hurtTimer = 1.1;
           player.vx = -Math.sign(enemy.vx || 1) * 220;
@@ -710,6 +849,7 @@
           if (playerHealth <= 0) {
             gameOver = true;
             deathCause = "enemigo";
+            if (!recordSaved) { saveRecord(); recordSaved = true; }
             if (score > highScore) {
               highScore = score;
               localStorage.setItem("pipepanic_highscore", String(Math.floor(score)));
@@ -728,16 +868,24 @@
         helper.x = approach(helper.x, player.x + (helper.type === "munipa" ? -70 : 70), 120 * dt);
         if (helper.actionTimer <= 0) {
           helper.actionTimer = helper.type === "munipa" ? 0.7 : 0.9;
-          if (helper.type === "munipa") {
-            const enemyIndex = enemies.findIndex(enemy => Math.abs(enemy.x - helper.x) < 220);
-            if (enemyIndex >= 0) damageEnemy(enemyIndex, 1, 0.7);
-          } else {
-            const pipe = pipes.find(item => item.leak > 0 && Math.abs(item.x - helper.x) < 180);
-            const drain = drains.find(item => item.clogged > 0 && Math.abs(item.x - helper.x) < 180);
-            if (pipe) pipe.leak = Math.max(0, pipe.leak - 0.08);
-            if (drain) drain.clogged = Math.max(0, drain.clogged - 0.08);
-            waterLevel = Math.max(0, waterLevel - 0.35);
-          }
+      if (helper.type === "munipa") {
+        const enemyIndex = enemies.findIndex(enemy => Math.abs(enemy.x - helper.x) < 220);
+        if (enemyIndex >= 0) damageEnemy(enemyIndex, 1, 0.7);
+      } else {
+        const pipe = pipes.find(item => item.leak > 0 && Math.abs(item.x - helper.x) < 180);
+        const drain = drains.find(item => item.clogged > 0 && Math.abs(item.x - helper.x) < 180);
+        if (pipe) {
+          pipe.leak = Math.max(0, pipe.leak - 0.16);
+          pipe.repairedFlash = 0.2;
+          for (let p = 0; p < 3; p++) particles.push({ x: pipe.x + randomRange(-10, 10), y: pipe.y + 20, vx: randomRange(-30, 30), vy: randomRange(-70, -20), life: 0.35, color: "#73ff9f" });
+        }
+        if (drain) {
+          drain.clogged = Math.max(0, drain.clogged - 0.16);
+          drain.repairedFlash = 0.2;
+          for (let p = 0; p < 3; p++) particles.push({ x: drain.x + randomRange(-10, 10), y: floorY, vx: randomRange(-30, 30), vy: randomRange(-70, -20), life: 0.35, color: "#42e8ff" });
+        }
+        waterLevel = Math.max(0, waterLevel - 0.7);
+      }
         }
         if (helper.timer <= 0) helpers.splice(i, 1);
       }
@@ -850,6 +998,9 @@
         { x: 5300, type: "tower", color: "#dbeaf2" },
         { x: 6200, type: "building", w: 220, h: 90, color: "#5b6a78" },
         { x: 6540, type: "building", w: 160, h: 80, color: "#4a5a68" },
+        { x: 6720, type: "building", w: 120, h: 140, color: "#6f5a45", roof: "#4f3a25" },
+        { x: 6850, type: "sign", text: "BAR MIMOS", color: "#ffd166" },
+        { x: 6950, type: "sign", text: "S. GALEPERTARRAK", color: "#73ff9f" },
         { x: 7350, type: "sign", text: "PASARELA", color: "#ffd166" },
         { x: 8200, type: "building", w: 160, h: 140, color: "#6f5a45", roof: "#4f3a25" },
         { x: 9100, type: "tower", color: "#ff5a6d" },
@@ -878,6 +1029,8 @@
         { x: 5300, type: "building", w: 90, h: 190, color: "#4a5378" },
         { x: 6200, type: "building", w: 110, h: 220, color: "#5b6478" },
         { x: 7300, type: "tree", color: "#3a6b3a" },
+        { x: 7550, type: "building", w: 180, h: 110, color: "#4a4040", roof: "#2a2020" },
+        { x: 7650, type: "sign", text: "ZARDOYA OTIS", color: "#8a6a6a" },
         { x: 8200, type: "tower", color: "#5b6478" },
         { x: 9100, type: "building", w: 100, h: 200, color: "#4a5378" },
       ],
@@ -1341,12 +1494,22 @@
       for (const projectile of projectiles) {
         if (!isVisible(projectile.x)) continue;
         ctx.translate(visibleX(projectile.x), projectile.y);
-        ctx.fillStyle = "#dbeaf2";
-        ctx.beginPath();
-        ctx.arc(0, 0, 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#ff5a6d";
-        ctx.fillRect(-6, -3, 12, 6);
+        ctx.fillStyle = projectile.color || "#dbeaf2";
+        if (projectile.friendlyFire) {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 7, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#b08020";
+          ctx.beginPath();
+          ctx.ellipse(-1, -1, 3, 2, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#ff5a6d";
+          ctx.fillRect(-6, -3, 12, 6);
+        }
         ctx.setTransform(1, 0, 0, 1, 0, 0);
       }
       ctx.restore();
@@ -1371,6 +1534,45 @@
             ctx.fillStyle = "#2a1f1b";
             ctx.fillRect(enemy.w - 3, 11, 12, 5);
           }
+        } else if (enemy.type === "cockroach") {
+          ctx.beginPath();
+          ctx.ellipse(enemy.w / 2, enemy.h / 2 + 2, enemy.w / 2, enemy.h / 2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#3a2010";
+          ctx.lineWidth = 1.5;
+          for (let leg = 0; leg < 6; leg++) {
+            const lx = 3 + leg * 3;
+            const ly = leg % 2 === 0 ? 2 : 10;
+            ctx.beginPath();
+            ctx.moveTo(lx, ly);
+            ctx.lineTo(lx + (leg < 3 ? -5 : 5), ly + (leg % 2 === 0 ? -2 : 4));
+            ctx.stroke();
+          }
+          ctx.fillStyle = "#3a2010";
+          ctx.beginPath();
+          ctx.ellipse(enemy.w / 2 - 3, 1, 3, 2, -0.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(enemy.w / 2 + 3, 1, 3, 2, 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (enemy.type === "kroketas") {
+          ctx.fillStyle = "#e8d5b0";
+          ctx.fillRect(4, 12, enemy.w - 8, enemy.h - 12);
+          ctx.fillStyle = "#c03020";
+          ctx.fillRect(2, 8, enemy.w - 4, 12);
+          ctx.fillStyle = "#2a1a0a";
+          ctx.fillRect(8, 0, enemy.w - 16, 10);
+          ctx.fillStyle = "#101010";
+          ctx.fillRect(6, 0, 4, 6);
+          ctx.fillRect(enemy.w - 10, 0, 4, 6);
+          ctx.fillStyle = "#ffd166";
+          ctx.font = "700 9px system-ui";
+          ctx.fillText("KROKETAS", 2, enemy.h - 4);
+          const staggerBob = Math.sin(performance.now() / 130 + enemy.x / 20) * 2;
+          ctx.fillStyle = "#e8c840";
+          ctx.beginPath();
+          ctx.arc(enemy.w / 2 + staggerBob, enemy.h - 14, 5, 0, Math.PI * 2);
+          ctx.fill();
         } else if (enemy.type === "drone") {
           ctx.fillRect(5, 8, enemy.w - 10, enemy.h - 16);
           ctx.strokeStyle = "#42e8ff";
@@ -1470,6 +1672,8 @@
 
     function enemyColor(type) {
       if (type === "rat") return "#6b6470";
+      if (type === "cockroach") return "#5a3a1a";
+      if (type === "kroketas") return "#e8d5b0";
       if (type === "drone") return "#8aa4b8";
       if (type === "thief") return "#303044";
       if (type === "knife") return "#2d2a33";
@@ -1481,6 +1685,8 @@
 
     function enemyName(type) {
       if (type === "rat") return "Rata";
+      if (type === "cockroach") return "Cucaracha";
+      if (type === "kroketas") return "El Kroketas";
       if (type === "dog") return "Perro suelto";
       if (type === "thief") return "Ladrón de cobre";
       if (type === "knife") return "Segarro";
@@ -1692,19 +1898,39 @@
         ctx.fillStyle = "#f5fbff";
       }
       ctx.font = "700 20px system-ui";
-      ctx.fillText(`Puntuación final: ${Math.floor(score)}`, W / 2, 290);
+      ctx.fillText(`Puntuación final: ${Math.floor(score)}`, W / 2, scenarioComplete ? 270 : 290);
       const isNew = score > highScore && !scenarioComplete;
       if (isNew) {
         ctx.fillStyle = "#ffd166";
         ctx.font = "900 16px system-ui";
-        ctx.fillText("¡NUEVO RÉCORD!", W / 2, 322);
+        ctx.fillText("¡NUEVO RÉCORD!", W / 2, scenarioComplete ? 300 : 322);
       }
       ctx.fillStyle = "#9cb8c9";
       ctx.font = "600 14px system-ui";
-      ctx.fillText(`Récord anterior: ${Math.floor(highScore)}`, W / 2, 348);
+      ctx.fillText(`Récord anterior: ${Math.floor(highScore)}`, W / 2, scenarioComplete ? 320 : 348);
+
+      const topY = scenarioComplete ? 350 : 376;
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(W / 2 - 200, topY - 4, 400, 108);
+      ctx.fillStyle = "#ffd166";
+      ctx.font = "800 13px system-ui";
+      ctx.fillText("TOP 5 RANKING", W / 2, topY + 18);
+      ctx.font = "600 11px system-ui";
+      const sorted = [...records].sort((a, b) => b.score - a.score);
+      for (let i = 0; i < Math.min(5, sorted.length); i++) {
+        const r = sorted[i];
+        const y = topY + 38 + i * 18;
+        ctx.fillStyle = i === 0 ? "#ffd166" : i === 1 ? "#dbeaf2" : i === 2 ? "#b08060" : "#9cb8c9";
+        ctx.fillText(`${i + 1}. ${r.characterName} · ${r.score} pts · ${r.scenarioName}`, W / 2, y);
+      }
+      if (sorted.length === 0) {
+        ctx.fillStyle = "#657788";
+        ctx.fillText("Todavía no hay records", W / 2, topY + 58);
+      }
+
       ctx.fillStyle = "#f5fbff";
       ctx.font = "700 18px system-ui";
-      ctx.fillText("Pulsa Enter para volver a elegir personaje", W / 2, 380);
+      ctx.fillText("Pulsa Enter para volver a elegir personaje", W / 2, topY + 118);
       ctx.textAlign = "left";
     }
 
@@ -1737,8 +1963,11 @@
       if (specialEvent?.type === "debug") return "Modo informática: reparación remota";
       if (specialEvent?.type === "caravan") return "Caravana activada: velocidad";
       if (specialEvent?.type === "fishknife") return "Cuchillo de pescadero: daño x2.4";
-      if (specialEvent?.type === "blueprint") return "Plano técnico: limpia sumideros";
       if (specialEvent?.type === "calm") return "Calma total: menos agua";
+      if (specialEvent?.type === "birra") return "Birra del Kamio: inmunidad + velocidad";
+      if (specialEvent?.type === "rosario") return "Rosario: enemigos repelidos";
+      if (specialEvent?.type === "manifest") return "Manifestación: aliados y aturdimiento";
+      if (specialEvent?.type === "hinchaSpecial") return "Gora Erreala!: enemigos aturdidos";
       return "Especial activo";
     }
 
@@ -1786,6 +2015,54 @@
       return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
     }
 
+    function loadRecords() {
+      try { records = JSON.parse(localStorage.getItem("pipepanic_records") || "[]"); } catch (e) { records = []; }
+    }
+    function saveRecord() {
+      const pipesRepaired = pipes.filter(p => p.leak <= 0).length;
+      const openDrains = drains.filter(d => d.clogged <= 0).length;
+      const entry = {
+        score: Math.floor(score),
+        characterName: selectedCharacter?.name || "?",
+        characterId: selectedCharacter?.id || "?",
+        scenarioName: selectedScenario?.name || "?",
+        scenarioId: selectedScenario?.id || "?",
+        date: new Date().toLocaleDateString("es-ES"),
+        zonesCompleted: currentStage,
+        pipesRepaired,
+        openDrains,
+        deathCause: scenarioComplete ? "completado" : deathCause || "desconocido"
+      };
+      records.push(entry);
+      records.sort((a, b) => b.score - a.score);
+      if (records.length > 30) records.length = 30;
+      localStorage.setItem("pipepanic_records", JSON.stringify(records));
+    }
+    function renderRanking() {
+      const container = document.getElementById("rankingList");
+      if (!container) return;
+      if (!records.length) {
+        container.innerHTML = '<div class="ranking-empty">Todavía no hay partidas registradas</div>';
+        return;
+      }
+      let html = '<table class="ranking-table"><thead><tr><th></th><th>Puntos</th><th>Personaje</th><th>Escenario</th><th>Zonas</th><th>Causa</th><th>Fecha</th></tr></thead><tbody>';
+      for (let i = 0; i < Math.min(records.length, 30); i++) {
+        const r = records[i];
+        const medals = ["🥇", "🥈", "🥉"];
+        const rank = i < 3 ? medals[i] : `<span style="color:var(--muted)">${i + 1}</span>`;
+        const causeLabel = r.deathCause === "completado" ? "🏆 Completado" : r.deathCause === "agua" ? "💧 Inundación" : r.deathCause === "enemigo" ? "⚔️ Enemigo" : "?";
+        html += `<tr><td class="rank">${rank}</td><td class="score-cell">${r.score}</td><td>${r.characterName}</td><td>${r.scenarioName}</td><td>${r.zonesCompleted}/10</td><td style="font-size:12px">${causeLabel}</td><td class="date-cell">${r.date}</td></tr>`;
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function showRankingScreen() {
+      characterScreen.classList.add("hidden");
+      rankingScreen.classList.remove("hidden");
+      renderRanking();
+    }
+
     window.addEventListener("keydown", event => {
       if (["ArrowLeft", "ArrowRight", "ArrowUp", " "].includes(event.key)) event.preventDefault();
       keys.add(event.key);
@@ -1799,6 +2076,13 @@
       characterScreen.classList.remove("hidden");
     });
 
+    viewRanking.addEventListener("click", showRankingScreen);
+    backToCharactersFromRanking.addEventListener("click", () => {
+      rankingScreen.classList.add("hidden");
+      characterScreen.classList.remove("hidden");
+    });
+
+    loadRecords();
     renderCharacterCards();
     renderScenarioCards();
     resetGame();
