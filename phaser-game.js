@@ -141,7 +141,7 @@ class MainScene extends Phaser.Scene {
   create() {
     phaserScene = this;
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.keys = this.input.keyboard.addKeys("W,A,S,D,E,F,ONE,TWO,THREE,ESC,ENTER");
+    this.keys = this.input.keyboard.addKeys("W,A,S,D,E,F,Q,ONE,TWO,THREE,ESC,ENTER");
     this.createTextures();
     this.showAttract();
   }
@@ -191,6 +191,8 @@ class MainScene extends Phaser.Scene {
     this.earthquakeTimer = 0;
     this.attackCooldown = 0;
     this.currentToolIndex = 0;
+    this.specialEvent = null;
+    this.specialCooldown = 0;
 
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, H);
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, H);
@@ -290,6 +292,7 @@ class MainScene extends Phaser.Scene {
 
     const dt = deltaMs / 1000;
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+    this.specialCooldown = Math.max(0, this.specialCooldown - dt);
     this.updatePlayer(dt);
     this.updatePipes(dt);
     this.updateProjectiles();
@@ -306,7 +309,9 @@ class MainScene extends Phaser.Scene {
     const right = this.cursors.right.isDown || this.keys.D.isDown;
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) || Phaser.Input.Keyboard.JustDown(this.keys.W) || Phaser.Input.Keyboard.JustDown(this.cursors.space);
     const caffeineMod = this.caffeineTimer > 0 ? 1.8 : 1;
-    const speed = 220 * this.character.speedMod * caffeineMod;
+    const caravanMod = this.specialEvent?.type === "caravan" ? 1.9 : 1;
+    const birraMod = this.specialEvent?.type === "birra" ? 2.2 : 1;
+    const speed = 220 * this.character.speedMod * caffeineMod * caravanMod * birraMod;
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.ONE)) this.currentToolIndex = 0;
     if (Phaser.Input.Keyboard.JustDown(this.keys.TWO)) this.currentToolIndex = 1;
@@ -326,6 +331,7 @@ class MainScene extends Phaser.Scene {
 
     if (jump && this.player.body.blocked.down) this.player.body.setVelocityY(-500 * this.character.jumpMod);
     if (Phaser.Input.Keyboard.JustDown(this.keys.F) && this.attackCooldown <= 0) this.attack();
+    if (Phaser.Input.Keyboard.JustDown(this.keys.Q)) this.triggerCharacterSpecial();
     if (this.keys.E.isDown) this.repair(dt);
 
     if (this.windTimer > 0) this.player.body.velocity.x += Math.sin(performance.now() / 260) * 80 * dt;
@@ -336,7 +342,9 @@ class MainScene extends Phaser.Scene {
     const tool = this.currentTool();
     this.attackCooldown = tool.cooldown;
     if (tool.id === "wrench") {
-      this.hitEnemiesInRange(tool.range, tool.damage, 0.2);
+      const damageMod = this.specialEvent?.type === "fishknife" ? 2.4 : 1;
+      const rangeMod = this.specialEvent?.type === "fishknife" ? 1.35 : 1;
+      this.hitEnemiesInRange(tool.range * rangeMod, tool.damage * damageMod, 0.2);
       return;
     }
 
@@ -447,6 +455,12 @@ class MainScene extends Phaser.Scene {
       }
 
       if (Phaser.Geom.Intersects.RectangleToRectangle(this.player.getBounds(), enemy.getBounds())) {
+        if (enemy.type === "waiter") {
+          this.damagePlayer(1.5);
+          enemy.destroy();
+          this.showNotice("¡TE ATRAPÓ EL CAMARERO!", 1.2);
+          return;
+        }
         if (enemy.specialType !== "mariKarmen") this.damagePlayer(enemy.damage || 1);
         enemy.body.setVelocityX(-enemy.body.velocity.x);
       }
@@ -464,6 +478,11 @@ class MainScene extends Phaser.Scene {
       this.activeEvent.timer -= dt;
       if (this.activeEvent.timer <= 0) this.activeEvent = null;
     }
+    if (this.specialEvent) {
+      this.specialEvent.timer -= dt;
+      this.updateCharacterSpecial(dt);
+      if (this.specialEvent.timer <= 0) this.specialEvent = null;
+    }
     if (this.caffeineTimer > 0) this.caffeineTimer -= dt;
     if (this.rainTimer > 0) {
       this.rainTimer -= dt;
@@ -478,6 +497,45 @@ class MainScene extends Phaser.Scene {
         drop.body.allowGravity = false;
       }
     }
+  }
+
+  triggerCharacterSpecial() {
+    if (this.specialCooldown > 0 || this.specialEvent) return;
+    this.specialCooldown = 24;
+    const id = this.character?.id;
+    if (id === "urko") {
+      this.specialEvent = { type: "prost", timer: 10 };
+      this.showNotice("URKO: ¡BOCATA DEL PROST!", 3);
+    } else if (id === "gari") {
+      this.specialEvent = { type: "cash", timer: 10, spawned: false };
+      this.showNotice("GARI: ¡PAGAR CON CASH!", 3);
+    } else if (id === "david") {
+      this.specialEvent = { type: "caravan", timer: 12 };
+      this.showNotice("DAVID: ¡CARAVANA ACTIVADA!", 3);
+    } else if (id === "pedro") {
+      this.specialEvent = { type: "fishknife", timer: 10 };
+      this.showNotice("PEDRO: ¡CUCHILLO DE PESCADERO!", 3);
+    } else if (id === "eider") {
+      this.specialEvent = { type: "birra", timer: 8 };
+      this.showNotice("EIDER: ¡BIRRA DEL KAMIO!", 3);
+    } else if (id === "usoa") {
+      this.specialEvent = { type: "calm", timer: 14 };
+      this.showNotice("USOA: ¡CALMA TOTAL!", 3);
+    }
+  }
+
+  updateCharacterSpecial(dt) {
+    if (this.specialEvent.type === "cash") {
+      if (!this.specialEvent.spawned) {
+        const waiterX = Phaser.Math.Clamp(this.player.x + (Math.random() > 0.5 ? -1 : 1) * 420, 40, WORLD_WIDTH - 80);
+        this.spawnEnemy("waiter", waiterX, this.currentScreen());
+        this.specialEvent.spawned = true;
+      }
+    }
+    if (this.specialEvent.type === "calm") this.waterLevel = Math.max(0, this.waterLevel - 8 * dt);
+    if (this.specialEvent.type === "fishknife") this.enemies.children.each(enemy => {
+      if (enemy.active && Math.abs(enemy.x - this.player.x) < 130) enemy.slowTimer = Math.max(enemy.slowTimer || 0, 0.3);
+    });
   }
 
   triggerRandomEvent() {
@@ -545,13 +603,15 @@ class MainScene extends Phaser.Scene {
     const effect = this.rainTimer > 0 ? "Galerna activa" : this.windTimer > 0 ? "Topo averiado" : this.earthquakeTimer > 0 ? "Igeldo tiembla" : this.activeEvent ? "Evento activo" : "Explora y repara";
     const tool = this.currentTool();
     const cooldown = this.attackCooldown > 0 ? ` · ${this.attackCooldown.toFixed(1)}s` : "";
+    const special = this.specialEvent ? `${this.specialLabel()} · ${Math.ceil(this.specialEvent.timer)}s` : this.specialCooldown > 0 ? `Especial en ${Math.ceil(this.specialCooldown)}s` : "Q: especial listo";
     this.hudText.setText([
       `${this.character.name} - ${this.character.title}`,
       `Lugar: ${this.scenario.name} · Zona ${this.currentStage}/${TOTAL_STAGES}`,
       `Tramo: ${this.currentScreen().name}`,
       `Averías: ${repaired}/${this.pipes.countActive(true)} · Agua: ${Math.floor(this.waterLevel)}%`,
       `Puntuación: ${Math.floor(this.score)}`,
-      effect
+      effect,
+      special
     ]);
     this.sideText.setText([
       `Vida: ${"♥".repeat(Math.max(0, Math.ceil(this.health)))}`,
@@ -578,7 +638,21 @@ class MainScene extends Phaser.Scene {
     return set[this.currentToolIndex] || set[0];
   }
 
+  specialLabel() {
+    if (this.specialEvent?.type === "prost") return "Bocata del Prost: inmunidad";
+    if (this.specialEvent?.type === "cash") return "Cash: viene el camarero";
+    if (this.specialEvent?.type === "caravan") return "Caravana: velocidad";
+    if (this.specialEvent?.type === "fishknife") return "Cuchillo: daño x2.4";
+    if (this.specialEvent?.type === "birra") return "Birra: inmunidad + velocidad";
+    if (this.specialEvent?.type === "calm") return "Calma: baja el agua";
+    return "Especial activo";
+  }
+
   damagePlayer(amount) {
+    if (this.specialEvent?.type === "prost" || this.specialEvent?.type === "birra") {
+      this.showNotice(this.specialEvent.type === "birra" ? "¡BIRRA DEL KAMIO!" : "¡BOCATA DEL PROST!", 0.8);
+      return;
+    }
     if (this.invulnerableUntil && this.time.now < this.invulnerableUntil) return;
     this.health = Math.max(0, this.health - amount);
     this.invulnerableUntil = this.time.now + 650;
@@ -631,6 +705,7 @@ class MainScene extends Phaser.Scene {
     if (type === "mariKarmen") return 0xc44060;
     if (type === "alcalde") return 0xe03030;
     if (type === "hincha") return 0x1a4d8c;
+    if (type === "waiter") return 0xffd166;
     if (type === "knife") return 0x2d2a33;
     if (type === "dj") return 0x7c4dff;
     if (type === "dog") return 0x8b5a2b;
@@ -677,6 +752,7 @@ document.addEventListener("keydown", event => {
   if (event.key === "2") scene.currentToolIndex = 1;
   if (event.key === "3") scene.currentToolIndex = 2;
   if ((event.key === "f" || event.key === "F") && scene.attackCooldown <= 0) scene.attack();
+  if (event.key === "q" || event.key === "Q") scene.triggerCharacterSpecial();
 });
 
 renderCharacterCards();
