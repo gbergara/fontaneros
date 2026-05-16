@@ -171,7 +171,13 @@
         drains.push({
           x: areaStart + randomRange(180, W - 180),
           y: floorY - 10,
-          clogged: randomRange(0.45, 0.82) * screen.difficulty,
+          clogged: stage === 1 ? randomRange(0, 0.15) : randomRange(0.35, 0.72) * screen.difficulty,
+          repairedFlash: 0
+        });
+        drains.push({
+          x: areaStart + randomRange(200, W - 160),
+          y: floorY - 10,
+          clogged: Math.max(0, randomRange(0.05, 0.25) * screen.difficulty - 0.1),
           repairedFlash: 0
         });
         spawnEnemies(screen, areaStart, stage);
@@ -239,7 +245,7 @@
       const openDrainPower = drains.reduce((sum, drain) => Math.abs(drain.x - player.x) < W * 1.1 && drain.clogged <= 0 ? sum + 1 : sum, 0);
       const sunDrain = sunTimer > 0 ? 12 : 0;
       const calmDrain = specialEvent?.type === "calm" ? 4.5 : 0;
-      const drainRate = 1.1 + repairedRatio * 4.8 + openDrainPower * 2.4 + (totalLeak < 0.8 ? 2.6 : 0) + sunDrain + calmDrain;
+      const drainRate = 2.5 + repairedRatio * 5.5 + openDrainPower * 3.0 + (totalLeak < 0.8 ? 3.2 : 0) + sunDrain + calmDrain;
       waterLevel = Math.max(0, waterLevel + floodRate * dt - drainRate * dt);
       if (waterLevel >= 122) {
         waterLevel = 122;
@@ -537,7 +543,6 @@
         if (pipe.leak <= 0) continue;
         if (!isVisible(pipe.x, W * 0.25)) continue;
         pipe.spawnTimer -= dt * rushMod;
-        waterLevel += pipe.leak * 0.44 * selectedCharacter.floodMod * selectedScenario.floodMod * pipe.difficulty * rushMod * dt;
 
         if (pipe.spawnTimer <= 0) {
           drops.push({
@@ -698,15 +703,15 @@
     function drawBackground() {
       const scenario = selectedScenario || scenarios[0];
       const sky = ctx.createLinearGradient(0, 0, 0, H);
-      sky.addColorStop(0, hexToRgba(scenario.sky, 0.48));
-      sky.addColorStop(1, "rgba(9, 19, 31, 0.74)");
+      sky.addColorStop(0, hexToRgba(scenario.sky, 0.28));
+      sky.addColorStop(1, "rgba(9, 19, 31, 0.55)");
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, W, H);
 
       drawStreetViewBackdrop(scenario);
       drawScenarioLandmarks(scenario);
 
-      ctx.fillStyle = hexToRgba(scenario.ground, 0.78);
+      ctx.fillStyle = hexToRgba(scenario.ground, 0.62);
       ctx.fillRect(0, floorY, W, H - floorY);
       ctx.fillStyle = "#20354b";
       const tileOffset = -(cameraX % 64);
@@ -719,7 +724,7 @@
       const palette = streetViewPalette(scenario.id);
 
       ctx.save();
-      ctx.fillStyle = "rgba(4, 10, 18, 0.18)";
+      ctx.fillStyle = "rgba(4, 10, 18, 0.08)";
       ctx.fillRect(0, 0, W, floorY);
       ctx.fillStyle = palette.road;
       ctx.beginPath();
@@ -1293,7 +1298,7 @@
     }
 
     function drawWater() {
-      if (waterLevel <= 0.2) return;
+      if (waterLevel < 0.5) return;
       const y = floorY - waterLevel;
       const gradient = ctx.createLinearGradient(0, y, 0, H);
       gradient.addColorStop(0, "rgba(66,232,255,0.78)");
