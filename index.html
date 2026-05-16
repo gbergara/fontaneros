@@ -4,12 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pipe Panic - Fontaneros</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQPDLixwRUiToKaI7N2gXnTdpELj+4M=" crossorigin="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="shell">
-    <div id="osmMap" aria-hidden="true"></div>
+    <div id="bgImage" aria-hidden="true"></div>
     <canvas id="game" width="960" height="540" aria-label="Juego Pipe Panic"></canvas>
     <div class="hud-note">Mover: A/D o flechas · Saltar: W/↑/Espacio · Reparar: E · Herramientas: 1/2/3 · Usar: F</div>
 
@@ -30,7 +29,6 @@
       </div>
     </section>
   </main>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="characters.js"></script>
   <script src="scenarios.js"></script>
   <script src="map.js"></script>

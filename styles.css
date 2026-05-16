@@ -265,27 +265,26 @@
       box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
     }
 
-    #osmMap {
+    #bgImage {
       position: absolute;
       inset: clamp(12px, 2vw, 24px);
       z-index: 0;
       overflow: hidden;
       border-radius: 28px;
-      filter: saturate(0.95) contrast(1.05) brightness(0.72);
-      background: #081927;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      filter: saturate(0.95) contrast(1.05) brightness(0.65);
+      background-color: #081927;
     }
 
-    #osmMap::after {
+    #bgImage::after {
       content: "";
       position: absolute;
       inset: 0;
-      z-index: 450;
+      z-index: 1;
       pointer-events: none;
-      background: linear-gradient(180deg, rgba(5, 13, 24, 0.12), rgba(5, 13, 24, 0.22));
-    }
-
-    .leaflet-control-container {
-      font-size: 10px;
+      background: linear-gradient(180deg, rgba(5, 13, 24, 0.15), rgba(5, 13, 24, 0.25));
     }
 
     .hud-note {

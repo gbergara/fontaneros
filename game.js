@@ -103,7 +103,7 @@
       selectedScenario = scenario;
       scenarioScreen.classList.add("hidden");
       resetGame();
-      syncMapToScenario(selectedScenario, 0);
+      setBackground(selectedScenario);
       gameStarted = true;
       lastTime = performance.now();
       requestAnimationFrame(loop);
@@ -424,7 +424,6 @@
       player.x = clamp(player.x, 16, worldWidth - player.w - 16);
       cameraX = clamp(player.x + player.w / 2 - W / 2, 0, worldWidth - W);
       currentStage = clamp(Math.floor((player.x + player.w / 2) / W) + 1, 1, totalStages);
-      syncMapToScenario(selectedScenario, player.x / Math.max(1, worldWidth - player.w));
 
       if (allPipesSealed()) {
         scenarioComplete = true;
