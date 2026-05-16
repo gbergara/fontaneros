@@ -152,6 +152,7 @@ class MainScene extends Phaser.Scene {
     this.makeRectTexture("rat-pixel", 34, 22, 0x6b6470);
     this.makeRectTexture("drop-pixel", 8, 14, 0x42e8ff);
     this.makeRectTexture("coffee-pixel", 22, 22, 0xffd166);
+    this.makeRectTexture("plunger-pixel", 18, 12, 0xdbeaf2);
   }
 
   makeRectTexture(key, width, height, color) {
@@ -189,6 +190,7 @@ class MainScene extends Phaser.Scene {
     this.windTimer = 0;
     this.earthquakeTimer = 0;
     this.attackCooldown = 0;
+    this.currentToolIndex = 0;
 
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, H);
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, H);
@@ -206,6 +208,11 @@ class MainScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.drops = this.physics.add.group();
     this.pickups = this.physics.add.group();
+    this.projectiles = this.physics.add.group();
+    this.physics.add.overlap(this.projectiles, this.enemies, (projectile, enemy) => {
+      this.damageEnemy(enemy, projectile.damage || 1);
+      projectile.destroy();
+    });
 
     for (let stage = 0; stage < TOTAL_STAGES; stage++) {
       const screen = this.scenario.screens[stage];
@@ -285,6 +292,7 @@ class MainScene extends Phaser.Scene {
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     this.updatePlayer(dt);
     this.updatePipes(dt);
+    this.updateProjectiles();
     this.updateEnemies(dt);
     this.updateEvents(dt);
     this.updateWater(dt);
@@ -299,6 +307,10 @@ class MainScene extends Phaser.Scene {
     const jump = Phaser.Input.Keyboard.JustDown(this.cursors.up) || Phaser.Input.Keyboard.JustDown(this.keys.W) || Phaser.Input.Keyboard.JustDown(this.cursors.space);
     const caffeineMod = this.caffeineTimer > 0 ? 1.8 : 1;
     const speed = 220 * this.character.speedMod * caffeineMod;
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ONE)) this.currentToolIndex = 0;
+    if (Phaser.Input.Keyboard.JustDown(this.keys.TWO)) this.currentToolIndex = 1;
+    if (Phaser.Input.Keyboard.JustDown(this.keys.THREE)) this.currentToolIndex = 2;
 
     if (left) {
       this.player.body.setVelocityX(-speed);
@@ -321,31 +333,65 @@ class MainScene extends Phaser.Scene {
   }
 
   attack() {
-    this.attackCooldown = 0.45;
-    const range = 78;
+    const tool = this.currentTool();
+    this.attackCooldown = tool.cooldown;
+    if (tool.id === "wrench") {
+      this.hitEnemiesInRange(tool.range, tool.damage, 0.2);
+      return;
+    }
+
+    if (tool.id === "plunger") {
+      const projectile = this.projectiles.create(this.player.x + this.player.facing * 30, this.player.y + 18, "plunger-pixel");
+      projectile.damage = tool.damage;
+      projectile.body.allowGravity = false;
+      projectile.body.setVelocityX(this.player.facing * 430);
+      projectile.life = 1;
+      return;
+    }
+
+    this.hitEnemiesInRange(tool.range, 0, 1.8);
+    this.repair(0.16, true);
+  }
+
+  hitEnemiesInRange(range, damage, slowSeconds) {
     this.enemies.children.each(enemy => {
       if (!enemy.active) return;
       const inFront = Math.sign(enemy.x - this.player.x || this.player.facing) === this.player.facing;
-      if (inFront && Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y) < range) this.damageEnemy(enemy, 1.6);
+      if (!inFront || Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y) > range) return;
+      if (damage > 0) this.damageEnemy(enemy, damage);
+      enemy.body.setVelocityX(enemy.body.velocity.x * 0.35);
+      enemy.slowTimer = Math.max(enemy.slowTimer || 0, slowSeconds);
     });
   }
 
-  repair(dt) {
+  repair(dt, fromTape = false) {
     let target = null;
     this.pipes.children.each(pipe => {
-      if (!target && pipe.leak > 0 && Math.abs(pipe.x - this.player.x) < 56 && Math.abs(pipe.y - this.player.y) < 220) target = pipe;
+      const range = fromTape ? 92 : 56;
+      if (!target && pipe.leak > 0 && Math.abs(pipe.x - this.player.x) < range && Math.abs(pipe.y - this.player.y) < 220) target = pipe;
     });
     if (!target) return;
-    target.leak = Math.max(0, target.leak - 0.75 * this.character.repairMod * dt);
+    const rustyMod = this.activeEvent?.type === "tools" ? 0.5 : 1;
+    const tapeBoost = fromTape ? 1.4 : 1;
+    target.leak = Math.max(0, target.leak - 0.75 * this.character.repairMod * rustyMod * tapeBoost * dt);
     target.setAlpha(target.leak > 0 ? 1 : 0.35);
-    this.score += 18 * dt * this.character.repairMod;
+    this.score += 18 * dt * this.character.repairMod * rustyMod;
     if (target.leak <= 0) this.showNotice("¡AVERÍA SELLADA!", 0.8);
+  }
+
+  updateProjectiles() {
+    this.projectiles.children.each(projectile => {
+      if (!projectile.active) return;
+      projectile.life -= this.game.loop.delta / 1000;
+      if (projectile.life <= 0 || projectile.x < 0 || projectile.x > WORLD_WIDTH) projectile.destroy();
+    });
   }
 
   updatePipes(dt) {
     const waterMod = this.activeEvent?.type === "water" ? 2 : 1;
     this.pipes.children.each(pipe => {
       if (pipe.leak <= 0) return;
+      if (pipe.x < this.cameras.main.scrollX - W * 0.25 || pipe.x > this.cameras.main.scrollX + W * 1.25) return;
       pipe.spawnTimer -= dt * waterMod;
       if (pipe.spawnTimer <= 0) {
         const drop = this.drops.create(pipe.x + Phaser.Math.Between(-16, 16), pipe.y + 24, "drop-pixel");
@@ -367,6 +413,10 @@ class MainScene extends Phaser.Scene {
   updateEnemies(dt) {
     this.enemies.children.each(enemy => {
       if (!enemy.active) return;
+      if (enemy.slowTimer > 0) {
+        enemy.slowTimer -= dt;
+        enemy.body.setVelocityX(enemy.body.velocity.x * 0.96);
+      }
       const areaStart = Math.floor(enemy.x / W) * W;
       if (enemy.x < areaStart + 40 || enemy.x > areaStart + W - 40) enemy.body.setVelocityX(-enemy.body.velocity.x);
 
@@ -493,6 +543,8 @@ class MainScene extends Phaser.Scene {
   updateHud() {
     const repaired = this.pipes.children.entries.filter(pipe => pipe.leak <= 0).length;
     const effect = this.rainTimer > 0 ? "Galerna activa" : this.windTimer > 0 ? "Topo averiado" : this.earthquakeTimer > 0 ? "Igeldo tiembla" : this.activeEvent ? "Evento activo" : "Explora y repara";
+    const tool = this.currentTool();
+    const cooldown = this.attackCooldown > 0 ? ` · ${this.attackCooldown.toFixed(1)}s` : "";
     this.hudText.setText([
       `${this.character.name} - ${this.character.title}`,
       `Lugar: ${this.scenario.name} · Zona ${this.currentStage}/${TOTAL_STAGES}`,
@@ -503,7 +555,8 @@ class MainScene extends Phaser.Scene {
     ]);
     this.sideText.setText([
       `Vida: ${"♥".repeat(Math.max(0, Math.ceil(this.health)))}`,
-      "F: usar herramienta",
+      `${tool.key}: ${tool.name}${cooldown}`,
+      tool.description,
       "E: reparar tubería",
       `Récord: ${localStorage.getItem(HIGH_SCORE_KEY) || 0}`
     ]);
@@ -518,6 +571,11 @@ class MainScene extends Phaser.Scene {
       this.score += 35;
       enemy.destroy();
     }
+  }
+
+  currentTool() {
+    const set = toolSets[this.character?.id] || tools;
+    return set[this.currentToolIndex] || set[0];
   }
 
   damagePlayer(amount) {
@@ -610,6 +668,15 @@ viewRanking.addEventListener("click", () => {
 backToCharactersFromRanking.addEventListener("click", () => {
   rankingScreen.classList.add("hidden");
   characterScreen.classList.remove("hidden");
+});
+
+document.addEventListener("keydown", event => {
+  const scene = phaserScene;
+  if (!scene?.character || scene.gameOver) return;
+  if (event.key === "1") scene.currentToolIndex = 0;
+  if (event.key === "2") scene.currentToolIndex = 1;
+  if (event.key === "3") scene.currentToolIndex = 2;
+  if ((event.key === "f" || event.key === "F") && scene.attackCooldown <= 0) scene.attack();
 });
 
 renderCharacterCards();
