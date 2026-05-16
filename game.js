@@ -695,17 +695,19 @@
 
     function drawBackground() {
       const scenario = selectedScenario || scenarios[0];
-      const sky = ctx.createLinearGradient(0, 0, 0, H);
-      sky.addColorStop(0, hexToRgba(scenario.sky, 0.28));
-      sky.addColorStop(1, "rgba(9, 19, 31, 0.55)");
+      const sky = ctx.createLinearGradient(0, 0, 0, floorY);
+      sky.addColorStop(0, scenario.sky);
+      sky.addColorStop(1, scenario.ground);
       ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, W, floorY);
 
-      ctx.fillStyle = hexToRgba(scenario.ground, 0.55);
+      ctx.fillStyle = scenario.ground;
       ctx.fillRect(0, floorY, W, H - floorY);
-      ctx.fillStyle = "#20354b";
+      ctx.fillStyle = "#1a2533";
       const tileOffset = -(cameraX % 64);
-      for (let x = tileOffset; x < W; x += 64) ctx.fillRect(x, floorY, 44, 10);
+      for (let x = tileOffset; x < W; x += 64) ctx.fillRect(x, floorY, 44, 8);
+      ctx.fillStyle = "#101a26";
+      ctx.fillRect(0, floorY, W, 3);
     }
 
     function drawLandmarks() {
