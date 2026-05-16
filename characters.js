@@ -10,7 +10,7 @@ const characters = [
     repairMod: 0.8,
     jumpMod: 1,
     floodMod: 1,
-    notes: ["30% más rápido", "Repara un 20% más lento", "Gorra amarilla y peto negro"]
+    notes: ["30% más rápido", "Especial: Bocata del Prost", "Inmunidad temporal"]
   },
   {
     id: "gari",
@@ -23,7 +23,7 @@ const characters = [
     repairMod: 2,
     jumpMod: 0.9,
     floodMod: 1,
-    notes: ["Velocidad equilibrada", "Repara el doble de rápido", "Salta un poco menos"]
+    notes: ["Velocidad equilibrada", "Especial: Modo informática", "Reparación remota"]
   },
   {
     id: "david",
@@ -36,7 +36,7 @@ const characters = [
     repairMod: 1,
     jumpMod: 1.28,
     floodMod: 0.85,
-    notes: ["Un poco más lento", "Super Salto", "La inundación base baja un 15%"]
+    notes: ["Un poco más lento", "Especial: Caravana activada", "Velocidad en vehículo"]
   },
   {
     id: "pedro",
@@ -49,7 +49,7 @@ const characters = [
     repairMod: 1.18,
     jumpMod: 1.04,
     floodMod: 1,
-    notes: ["Rápido y preciso", "Repara un 18% más rápido", "Salto ligeramente mejor"]
+    notes: ["Rápido y preciso", "Especial: Cuchillo de pescadero", "Mucho daño cercano"]
   },
   {
     id: "eider",

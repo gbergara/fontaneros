@@ -43,6 +43,7 @@
     let coffee = null;
     let caffeineTimer = 0;
     let sunTimer = 0;
+    let specialEvent = null;
 
     function renderCharacterCards() {
       characterCards.innerHTML = "";
@@ -146,6 +147,7 @@
       coffee = null;
       caffeineTimer = 0;
       sunTimer = 0;
+      specialEvent = null;
       gameOver = false;
       nextEventAt = randomRange(20, 30);
 
@@ -232,10 +234,12 @@
 
       const totalLeak = pipes.reduce((sum, pipe) => Math.abs(pipe.x - player.x) < W * 0.85 ? sum + pipe.leak : sum, 0);
       const repairedRatio = pipes.length ? pipes.filter(pipe => pipe.leak <= 0).length / pipes.length : 0;
-      const floodRate = 0.45 * selectedCharacter.floodMod * selectedScenario.floodMod * stageDifficulty() * Math.min(totalLeak, 2.1);
+      const calmFloodMod = specialEvent?.type === "calm" ? 0.55 : 1;
+      const floodRate = 0.45 * selectedCharacter.floodMod * selectedScenario.floodMod * stageDifficulty() * Math.min(totalLeak, 2.1) * calmFloodMod;
       const openDrainPower = drains.reduce((sum, drain) => Math.abs(drain.x - player.x) < W * 1.1 && drain.clogged <= 0 ? sum + 1 : sum, 0);
       const sunDrain = sunTimer > 0 ? 12 : 0;
-      const drainRate = 1.1 + repairedRatio * 4.8 + openDrainPower * 2.4 + (totalLeak < 0.8 ? 2.6 : 0) + sunDrain;
+      const calmDrain = specialEvent?.type === "calm" ? 4.5 : 0;
+      const drainRate = 1.1 + repairedRatio * 4.8 + openDrainPower * 2.4 + (totalLeak < 0.8 ? 2.6 : 0) + sunDrain + calmDrain;
       waterLevel = Math.max(0, waterLevel + floodRate * dt - drainRate * dt);
       if (waterLevel >= 122) {
         waterLevel = 122;
@@ -280,10 +284,31 @@
 
       if (caffeineTimer > 0) caffeineTimer -= dt;
       if (sunTimer > 0) sunTimer -= dt;
+      if (specialEvent) {
+        specialEvent.timer -= dt;
+        updateCharacterSpecial(dt);
+        if (specialEvent.timer <= 0) specialEvent = null;
+      }
+    }
+
+    function updateCharacterSpecial(dt) {
+      if (specialEvent.type === "debug") {
+        const pipe = nearestLeakingPipe(520);
+        if (pipe) {
+          pipe.leak = Math.max(0, pipe.leak - 0.22 * dt);
+          pipe.repairedFlash = 0.12;
+          score += 6 * dt;
+        }
+      }
+      if (specialEvent.type === "blueprint") {
+        const drain = drains.find(item => item.clogged > 0 && Math.abs(item.x - player.x) < 460);
+        if (drain) drain.clogged = Math.max(0, drain.clogged - 0.14 * dt);
+      }
     }
 
     function triggerRandomEvent() {
-      const eventName = ["water", "tools", "coffee", "sun", "neighbor", "munipa"][Math.floor(Math.random() * 6)];
+      const eventPool = ["water", "tools", "coffee", "sun", "neighbor", "munipa", "special"];
+      const eventName = eventPool[Math.floor(Math.random() * eventPool.length)];
       if (eventName === "water") {
         activeEvent = { type: "water", timer: 8 };
         showNotice("EVENTO: ¡TORRENTE DE AGUA!", 3.2);
@@ -307,6 +332,30 @@
       if (eventName === "munipa") {
         spawnHelper("munipa");
         showNotice("EVENTO: ¡MUNIPA DE REFUERZO!", 3.2);
+      }
+      if (eventName === "special") triggerCharacterSpecial();
+    }
+
+    function triggerCharacterSpecial() {
+      const id = selectedCharacter?.id;
+      if (id === "urko") {
+        specialEvent = { type: "prost", timer: 120 };
+        showNotice("URKO: ¡BOCATA DEL PROST! Inmunidad", 4);
+      } else if (id === "gari") {
+        specialEvent = { type: "debug", timer: 18 };
+        showNotice("GARI: ¡MODO INFORMÁTICA! Reparación remota", 4);
+      } else if (id === "david") {
+        specialEvent = { type: "caravan", timer: 18 };
+        showNotice("DAVID: ¡CARAVANA ACTIVADA!", 4);
+      } else if (id === "pedro") {
+        specialEvent = { type: "fishknife", timer: 16 };
+        showNotice("PEDRO: ¡CUCHILLO DE PESCADERO!", 4);
+      } else if (id === "eider") {
+        specialEvent = { type: "blueprint", timer: 20 };
+        showNotice("EIDER: ¡PLANO TÉCNICO!", 4);
+      } else if (id === "usoa") {
+        specialEvent = { type: "calm", timer: 22 };
+        showNotice("USOA: ¡CALMA TOTAL!", 4);
       }
     }
 
@@ -339,7 +388,8 @@
       const jump = keys.has("ArrowUp") || keys.has("w") || keys.has("W") || keys.has(" ");
       const caffeineMod = caffeineTimer > 0 ? 2 : 1;
       const musicMod = reggaetonSlowActive() ? 0.72 : 1;
-      const moveSpeed = 210 * selectedCharacter.speedMod * caffeineMod * musicMod;
+      const caravanMod = specialEvent?.type === "caravan" ? 1.9 : 1;
+      const moveSpeed = 210 * selectedCharacter.speedMod * caffeineMod * musicMod * caravanMod;
       const acceleration = player.grounded ? 2600 : 1550;
       const friction = player.grounded ? 1700 : 360;
       const maxJump = -485 * selectedCharacter.jumpMod;
@@ -397,7 +447,9 @@
       const tool = characterTools()[currentToolIndex];
       attackCooldown = tool.cooldown;
       if (tool.id === "wrench") {
-        hitEnemiesInRange(tool.range, tool.damage, 0.2);
+        const knifeMod = specialEvent?.type === "fishknife" ? 2.4 : 1;
+        const knifeRange = specialEvent?.type === "fishknife" ? 1.35 : 1;
+        hitEnemiesInRange(tool.range * knifeRange, tool.damage * knifeMod, 0.2);
         addToolSpark(player.x + player.w / 2 + player.facing * 34, player.y + 38, "#ffd166");
       } else if (tool.id === "plunger") {
         projectiles.push({
@@ -411,7 +463,11 @@
         hitEnemiesInRange(tool.range, 0, 1.8);
         if (repairTarget) {
           const sealBoost = selectedCharacter.id === "usoa" ? 0.34 : selectedCharacter.id === "pedro" ? 0.26 : 0.18;
-          repairTarget.leak = Math.max(0, repairTarget.leak - sealBoost);
+          if (repairTarget.clogged !== undefined) {
+            repairTarget.clogged = Math.max(0, repairTarget.clogged - sealBoost);
+          } else {
+            repairTarget.leak = Math.max(0, repairTarget.leak - sealBoost);
+          }
           repairTarget.repairedFlash = 0.24;
           score += 12;
         }
@@ -445,7 +501,7 @@
 
     function handleRepair(dt) {
       const repairing = keys.has("e") || keys.has("E");
-      const nearest = pipes.find(pipe => pipe.leak > 0 && Math.abs((player.x + player.w / 2) - pipe.x) < 46 && Math.abs(player.y - pipe.y) < 350);
+      const nearest = nearestLeakingPipe(specialEvent?.type === "debug" ? 120 : 46);
       const nearestDrain = drains.find(drain => drain.clogged > 0 && Math.abs((player.x + player.w / 2) - drain.x) < 52);
       repairTarget = nearest || nearestDrain || null;
 
@@ -466,6 +522,11 @@
       for (let i = 0; i < 2; i++) {
         particles.push({ x: repairTarget.x + randomRange(-16, 16), y: (repairTarget.y || floorY) + 22, vx: randomRange(-42, 42), vy: randomRange(-110, -40), life: 0.35, color: "#ffd166" });
       }
+    }
+
+    function nearestLeakingPipe(range) {
+      const centerX = player.x + player.w / 2;
+      return pipes.find(pipe => pipe.leak > 0 && Math.abs(centerX - pipe.x) < range && Math.abs(player.y - pipe.y) < 350);
     }
 
     function updatePipes(dt) {
@@ -548,6 +609,12 @@
         }
 
         if (hurtTimer <= 0 && rectsOverlap(player.x, player.y, player.w, player.h, enemy.x, enemy.y, enemy.w, enemy.h)) {
+          if (specialEvent?.type === "prost") {
+            enemy.stun = Math.max(enemy.stun, 1.2);
+            enemy.vx *= -1;
+            showNotice("¡BOCATA DEL PROST! Daño bloqueado", 0.8);
+            continue;
+          }
           playerHealth -= enemy.damage || 1;
           hurtTimer = 1.1;
           player.vx = -Math.sign(enemy.vx || 1) * 220;
@@ -652,6 +719,8 @@
       const palette = streetViewPalette(scenario.id);
 
       ctx.save();
+      ctx.fillStyle = "rgba(4, 10, 18, 0.18)";
+      ctx.fillRect(0, 0, W, floorY);
       ctx.fillStyle = palette.road;
       ctx.beginPath();
       ctx.moveTo(vanishingX - 34, horizonY);
@@ -683,6 +752,12 @@
 
       drawPerspectiveSide("left", palette, vanishingX, horizonY);
       drawPerspectiveSide("right", palette, vanishingX, horizonY);
+
+      ctx.fillStyle = "rgba(3, 12, 22, 0.62)";
+      ctx.fillRect(18, 154, 188, 28);
+      ctx.fillStyle = "#f5fbff";
+      ctx.font = "900 13px system-ui";
+      ctx.fillText("VISTA CALLE SIMULADA", 32, 173);
       ctx.restore();
     }
 
@@ -716,14 +791,14 @@
     }
 
     function streetViewPalette(id) {
-      if (id === "pasai-antxo") return { road: "rgba(35, 47, 58, 0.86)", buildingA: "rgba(166, 95, 52, 0.72)", buildingB: "rgba(41, 62, 80, 0.76)", window: "rgba(127, 220, 255, 0.65)" };
-      if (id === "astigarraga") return { road: "rgba(78, 58, 38, 0.82)", buildingA: "rgba(97, 65, 35, 0.72)", buildingB: "rgba(38, 91, 55, 0.68)", window: "rgba(255, 209, 102, 0.62)" };
-      if (id === "larratxo-altza") return { road: "rgba(43, 49, 68, 0.86)", buildingA: "rgba(74, 83, 103, 0.78)", buildingB: "rgba(55, 63, 83, 0.78)", window: "rgba(217, 199, 255, 0.64)" };
-      if (id === "egia") return { road: "rgba(48, 42, 48, 0.86)", buildingA: "rgba(179, 93, 58, 0.74)", buildingB: "rgba(36, 80, 82, 0.68)", window: "rgba(255, 207, 159, 0.64)" };
-      if (id === "gros") return { road: "rgba(45, 55, 66, 0.86)", buildingA: "rgba(219, 184, 106, 0.68)", buildingB: "rgba(43, 94, 120, 0.72)", window: "rgba(129, 232, 255, 0.64)" };
-      if (id === "amara") return { road: "rgba(54, 56, 64, 0.86)", buildingA: "rgba(91, 120, 104, 0.68)", buildingB: "rgba(74, 84, 98, 0.75)", window: "rgba(169, 207, 255, 0.64)" };
-      if (id === "parte-vieja") return { road: "rgba(55, 43, 40, 0.88)", buildingA: "rgba(154, 90, 45, 0.72)", buildingB: "rgba(93, 61, 51, 0.75)", window: "rgba(255, 202, 120, 0.64)" };
-      return { road: "rgba(42, 52, 68, 0.86)", buildingA: "rgba(58, 77, 101, 0.74)", buildingB: "rgba(42, 57, 78, 0.74)", window: "rgba(156, 236, 255, 0.64)" };
+      if (id === "pasai-antxo") return { road: "rgba(35, 47, 58, 0.96)", buildingA: "rgba(166, 95, 52, 0.9)", buildingB: "rgba(41, 62, 80, 0.92)", window: "rgba(127, 220, 255, 0.82)" };
+      if (id === "astigarraga") return { road: "rgba(78, 58, 38, 0.94)", buildingA: "rgba(97, 65, 35, 0.9)", buildingB: "rgba(38, 91, 55, 0.86)", window: "rgba(255, 209, 102, 0.82)" };
+      if (id === "larratxo-altza") return { road: "rgba(43, 49, 68, 0.96)", buildingA: "rgba(74, 83, 103, 0.94)", buildingB: "rgba(55, 63, 83, 0.94)", window: "rgba(217, 199, 255, 0.82)" };
+      if (id === "egia") return { road: "rgba(48, 42, 48, 0.96)", buildingA: "rgba(179, 93, 58, 0.92)", buildingB: "rgba(36, 80, 82, 0.88)", window: "rgba(255, 207, 159, 0.82)" };
+      if (id === "gros") return { road: "rgba(45, 55, 66, 0.96)", buildingA: "rgba(219, 184, 106, 0.88)", buildingB: "rgba(43, 94, 120, 0.9)", window: "rgba(129, 232, 255, 0.82)" };
+      if (id === "amara") return { road: "rgba(54, 56, 64, 0.96)", buildingA: "rgba(91, 120, 104, 0.88)", buildingB: "rgba(74, 84, 98, 0.92)", window: "rgba(169, 207, 255, 0.82)" };
+      if (id === "parte-vieja") return { road: "rgba(55, 43, 40, 0.98)", buildingA: "rgba(154, 90, 45, 0.9)", buildingB: "rgba(93, 61, 51, 0.92)", window: "rgba(255, 202, 120, 0.82)" };
+      return { road: "rgba(42, 52, 68, 0.96)", buildingA: "rgba(58, 77, 101, 0.92)", buildingB: "rgba(42, 57, 78, 0.92)", window: "rgba(156, 236, 255, 0.82)" };
     }
 
     function drawZoneOverlay() {
@@ -1176,6 +1251,27 @@
       ctx.fillRect(2, 24, 5, 4);
       ctx.fillRect(12, 24, 9, 5);
 
+      if (specialEvent?.type === "caravan") {
+        ctx.fillStyle = "rgba(255, 209, 102, 0.92)";
+        ctx.fillRect(-30, 48, 60, 25);
+        ctx.fillStyle = "#263548";
+        ctx.fillRect(-19, 53, 14, 9);
+        ctx.fillRect(6, 53, 14, 9);
+        ctx.fillStyle = "#101018";
+        ctx.beginPath();
+        ctx.arc(-20, 75, 6, 0, Math.PI * 2);
+        ctx.arc(20, 75, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (specialEvent?.type === "prost") {
+        ctx.strokeStyle = "rgba(255, 209, 102, 0.9)";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 38, 38 + Math.sin(performance.now() / 90) * 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
       if (caffeineTimer > 0) {
         ctx.strokeStyle = "rgba(255, 209, 102, 0.85)";
         ctx.lineWidth = 3;
@@ -1197,6 +1293,7 @@
     }
 
     function drawWater() {
+      if (waterLevel <= 0.2) return;
       const y = floorY - waterLevel;
       const gradient = ctx.createLinearGradient(0, y, 0, H);
       gradient.addColorStop(0, "rgba(66,232,255,0.78)");
@@ -1233,6 +1330,12 @@
       ctx.fillText(`Averías: ${repaired}/${pipes.length} · Sumideros: ${openDrains}/${drains.length} · Agua: ${Math.floor(waterLevel)}%`, 34, 110);
       const effect = sunTimer > 0 ? "Solazo activo: el agua baja rápido" : allPipesSealed() ? "Barrio completo" : reggaetonSlowActive() ? "Reggaetón cerca: velocidad reducida" : activeEvent ? eventLabel(activeEvent.type) : caffeineTimer > 0 ? "Cafeína activa" : "Explora el mapa y repara averías";
       ctx.fillText(effect, 34, 132);
+
+      if (specialEvent) {
+        ctx.fillStyle = "#ffd166";
+        ctx.font = "900 13px system-ui";
+        ctx.fillText(`${specialLabel()} · ${Math.ceil(specialEvent.timer)}s`, 472, 60);
+      }
 
       ctx.fillStyle = "rgba(219, 234, 242, 0.76)";
       ctx.font = "600 12px system-ui";
@@ -1300,6 +1403,16 @@
       if (type === "water") return "Evento: Torrente de agua";
       if (type === "tools") return "Evento: Herramientas oxidadas";
       return "Evento activo";
+    }
+
+    function specialLabel() {
+      if (specialEvent?.type === "prost") return "Bocata del Prost: inmunidad";
+      if (specialEvent?.type === "debug") return "Modo informática: reparación remota";
+      if (specialEvent?.type === "caravan") return "Caravana activada: velocidad";
+      if (specialEvent?.type === "fishknife") return "Cuchillo de pescadero: daño x2.4";
+      if (specialEvent?.type === "blueprint") return "Plano técnico: limpia sumideros";
+      if (specialEvent?.type === "calm") return "Calma total: menos agua";
+      return "Especial activo";
     }
 
     function clamp(value, min, max) {
