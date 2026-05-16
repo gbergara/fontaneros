@@ -636,6 +636,7 @@
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, W, H);
 
+      drawStreetViewBackdrop(scenario);
       drawScenarioLandmarks(scenario);
 
       ctx.fillStyle = hexToRgba(scenario.ground, 0.78);
@@ -643,6 +644,86 @@
       ctx.fillStyle = "#20354b";
       const tileOffset = -(cameraX % 64);
       for (let x = tileOffset; x < W; x += 64) ctx.fillRect(x, floorY, 44, 10);
+    }
+
+    function drawStreetViewBackdrop(scenario) {
+      const vanishingX = W / 2 + Math.sin(cameraX / 620) * 70;
+      const horizonY = 258;
+      const palette = streetViewPalette(scenario.id);
+
+      ctx.save();
+      ctx.fillStyle = palette.road;
+      ctx.beginPath();
+      ctx.moveTo(vanishingX - 34, horizonY);
+      ctx.lineTo(vanishingX + 34, horizonY);
+      ctx.lineTo(W + 180, floorY);
+      ctx.lineTo(-180, floorY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.34)";
+      ctx.lineWidth = 4;
+      for (let i = -3; i <= 3; i++) {
+        const baseX = W / 2 + i * 120 - (cameraX % 120);
+        ctx.beginPath();
+        ctx.moveTo(vanishingX, horizonY + 10);
+        ctx.lineTo(baseX, floorY);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(255, 209, 102, 0.58)";
+      ctx.lineWidth = 5;
+      for (let y = horizonY + 18; y < floorY; y += 44) {
+        const t = (y - horizonY) / (floorY - horizonY);
+        ctx.beginPath();
+        ctx.moveTo(vanishingX - 7 * t, y);
+        ctx.lineTo(vanishingX + 7 * t, y + 18 * t);
+        ctx.stroke();
+      }
+
+      drawPerspectiveSide("left", palette, vanishingX, horizonY);
+      drawPerspectiveSide("right", palette, vanishingX, horizonY);
+      ctx.restore();
+    }
+
+    function drawPerspectiveSide(side, palette, vanishingX, horizonY) {
+      const dir = side === "left" ? -1 : 1;
+      for (let i = 0; i < 7; i++) {
+        const depth = i / 6;
+        const nearY = floorY - i * 30;
+        const farY = Math.max(horizonY + 20, nearY - 92 + depth * 28);
+        const nearX = dir < 0 ? -18 + i * 22 : W + 18 - i * 22;
+        const farX = vanishingX + dir * (92 + i * 18);
+        const width = 72 + (6 - i) * 16;
+        const height = 70 + ((i + currentStage) % 3) * 28;
+
+        ctx.fillStyle = i % 2 === 0 ? palette.buildingA : palette.buildingB;
+        ctx.beginPath();
+        ctx.moveTo(nearX, nearY);
+        ctx.lineTo(nearX + dir * width, nearY);
+        ctx.lineTo(farX + dir * 36, farY - height * 0.35);
+        ctx.lineTo(farX, farY - height);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = palette.window;
+        for (let w = 0; w < 3; w++) {
+          const wx = nearX + dir * (18 + w * 20);
+          ctx.fillRect(wx, nearY - 46, dir * 10, 10);
+          ctx.fillRect(wx, nearY - 24, dir * 10, 10);
+        }
+      }
+    }
+
+    function streetViewPalette(id) {
+      if (id === "pasai-antxo") return { road: "rgba(35, 47, 58, 0.86)", buildingA: "rgba(166, 95, 52, 0.72)", buildingB: "rgba(41, 62, 80, 0.76)", window: "rgba(127, 220, 255, 0.65)" };
+      if (id === "astigarraga") return { road: "rgba(78, 58, 38, 0.82)", buildingA: "rgba(97, 65, 35, 0.72)", buildingB: "rgba(38, 91, 55, 0.68)", window: "rgba(255, 209, 102, 0.62)" };
+      if (id === "larratxo-altza") return { road: "rgba(43, 49, 68, 0.86)", buildingA: "rgba(74, 83, 103, 0.78)", buildingB: "rgba(55, 63, 83, 0.78)", window: "rgba(217, 199, 255, 0.64)" };
+      if (id === "egia") return { road: "rgba(48, 42, 48, 0.86)", buildingA: "rgba(179, 93, 58, 0.74)", buildingB: "rgba(36, 80, 82, 0.68)", window: "rgba(255, 207, 159, 0.64)" };
+      if (id === "gros") return { road: "rgba(45, 55, 66, 0.86)", buildingA: "rgba(219, 184, 106, 0.68)", buildingB: "rgba(43, 94, 120, 0.72)", window: "rgba(129, 232, 255, 0.64)" };
+      if (id === "amara") return { road: "rgba(54, 56, 64, 0.86)", buildingA: "rgba(91, 120, 104, 0.68)", buildingB: "rgba(74, 84, 98, 0.75)", window: "rgba(169, 207, 255, 0.64)" };
+      if (id === "parte-vieja") return { road: "rgba(55, 43, 40, 0.88)", buildingA: "rgba(154, 90, 45, 0.72)", buildingB: "rgba(93, 61, 51, 0.75)", window: "rgba(255, 202, 120, 0.64)" };
+      return { road: "rgba(42, 52, 68, 0.86)", buildingA: "rgba(58, 77, 101, 0.74)", buildingB: "rgba(42, 57, 78, 0.74)", window: "rgba(156, 236, 255, 0.64)" };
     }
 
     function drawZoneOverlay() {
