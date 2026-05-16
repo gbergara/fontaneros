@@ -63,10 +63,13 @@
     let clouds = [];
     let audioCtx = null;
     let hinchaShoutTimer = 0;
+    let rainTimer = 0;
+    let windTimer = 0;
+    let earthquakeTimer = 0;
 
     function renderCharacterCards() {
       characterCards.innerHTML = "";
-      for (const character of characters) {
+      for (const character of characters.filter(character => !character.enemyOnly)) {
         const button = document.createElement("button");
         button.className = "card";
         button.type = "button";
@@ -147,6 +150,9 @@
       hasRepairTooltip = false;
       recordSaved = false;
       hinchaShoutTimer = 0;
+      rainTimer = 0;
+      windTimer = 0;
+      earthquakeTimer = 0;
       loadWorld();
     }
 
@@ -230,6 +236,17 @@
       const isAltza = scenarioId === "larratxo-altza";
       const isAmara = scenarioId === "amara";
       let types = ["rat", stage >= 3 ? "thief" : "rat", stage >= 5 ? "knife" : "dog", stage >= 7 ? "dj" : "rust", stage >= 8 ? "drone" : "rat"];
+      
+      // Añadir enemigos especiales según el stage
+      if (stage >= 4 && stage < 6) {
+        types.push("mariKarmen"); // Mari Karmen aparece en stages 4-5
+      }
+      if (stage >= 6 && stage < 8) {
+        types.push("alcalde"); // Alcalde aparece en stages 6-7
+      }
+      if (stage >= 8) {
+        types.push("hincha"); // Hincha aparece a partir del stage 8
+      }
       if (isPasaiAntxo) {
         types = ["cockroach", ...types, "cockroach"];
         const kroketasLandmarkX = 6950;
@@ -241,24 +258,25 @@
       for (let i = 0; i < count; i++) {
         const type = types[i % types.length];
         const flying = type === "drone";
-        const enemyW = type === "rat" ? 34 : type === "cockroach" ? 18 : type === "kroketas" ? 32 : type === "dog" ? 38 : type === "dj" || type === "knife" || type === "thief" ? 34 : 42;
-        const enemyH = type === "rat" ? 22 : type === "cockroach" ? 12 : type === "kroketas" ? 56 : type === "dog" ? 24 : type === "dj" || type === "knife" || type === "thief" ? 58 : 36;
+        const enemyW = type === "rat" ? 34 : type === "cockroach" ? 18 : type === "kroketas" ? 32 : type === "dog" ? 38 : type === "dj" || type === "knife" || type === "thief" || type === "mariKarmen" || type === "alcalde" || type === "hincha" ? 34 : 42;
+        const enemyH = type === "rat" ? 22 : type === "cockroach" ? 12 : type === "kroketas" ? 56 : type === "dog" ? 24 : type === "dj" || type === "knife" || type === "thief" || type === "mariKarmen" || type === "alcalde" || type === "hincha" ? 58 : 36;
         const cockroachSpeed = type === "cockroach" ? 1.7 : 1;
         const isKroketas = type === "kroketas";
         const enemyX = isKroketas ? areaStart + randomRange(120, W - 200) : areaStart + randomRange(260, W - 110);
         enemies.push({
           type,
           x: enemyX,
-          y: flying ? randomRange(170, 280) : getFloorY(enemyX) - enemyH,
+          y: type === "drone" ? randomRange(170, 280) : getFloorY(enemyX) - enemyH,
           w: enemyW,
           h: enemyH,
-          vx: isKroketas ? randomRange(22, 38) * (Math.random() > 0.5 ? 1 : -1) : randomRange(42, 72) * (Math.random() > 0.5 ? 1 : -1) * screen.difficulty * cockroachSpeed,
-          hp: type === "rust" ? 3 : type === "kroketas" ? 4 : type === "cockroach" ? 1 : type === "thief" || type === "knife" || type === "dj" ? 3 : 2,
-          damage: isKroketas ? 0 : type === "knife" ? 2 : type === "cockroach" ? 0.5 : 1,
+          vx: isKroketas ? randomRange(22, 38) * (Math.random() > 0.5 ? 1 : -1) : type === "mariKarmen" ? randomRange(20, 40) * (Math.random() > 0.5 ? 1 : -1) : type === "alcalde" ? randomRange(30, 50) * (Math.random() > 0.5 ? 1 : -1) : type === "hincha" ? randomRange(50, 80) * (Math.random() > 0.5 ? 1 : -1) : randomRange(42, 72) * (Math.random() > 0.5 ? 1 : -1) * screen.difficulty * cockroachSpeed,
+          hp: type === "rust" ? 3 : type === "kroketas" ? 4 : type === "cockroach" ? 1 : type === "thief" || type === "knife" || type === "dj" || type === "mariKarmen" || type === "alcalde" || type === "hincha" ? 4 : 2,
+          damage: isKroketas ? 0 : type === "knife" ? 2 : type === "cockroach" ? 0.5 : (type === "mariKarmen" ? 0 : type === "alcalde" ? 1.5 : type === "hincha" ? 1 : 1),
           hitFlash: 0,
           stun: 0,
           flying,
-          attackTimer: isKroketas ? 1.5 + Math.random() : 0
+          attackTimer: isKroketas ? 1.5 + Math.random() : 0,
+          specialType: type // Para identificar enemigos especiales Mari Karmen, alcalde, hincha
         });
       }
       if (stage === totalStages) {
@@ -377,25 +395,37 @@
 
 
     function updateEvents(dt) {
-      if (activeEvent) {
-        activeEvent.timer -= dt;
-        if (activeEvent.timer <= 0) activeEvent = null;
-      }
+       if (activeEvent) {
+         activeEvent.timer -= dt;
+         if (activeEvent.timer <= 0) activeEvent = null;
+       }
 
-      nextEventAt -= dt;
-      if (nextEventAt <= 0) {
-        triggerRandomEvent();
-        nextEventAt = randomRange(20, 30);
-      }
+       nextEventAt -= dt;
+       if (nextEventAt <= 0) {
+         triggerRandomEvent();
+         nextEventAt = randomRange(15, 25);
+       }
 
-      if (caffeineTimer > 0) caffeineTimer -= dt;
-      if (sunTimer > 0) sunTimer -= dt;
-      if (specialEvent) {
-        specialEvent.timer -= dt;
-        updateCharacterSpecial(dt);
-        if (specialEvent.timer <= 0) specialEvent = null;
-      }
-    }
+       if (caffeineTimer > 0) caffeineTimer -= dt;
+       if (sunTimer > 0) sunTimer -= dt;
+       if (rainTimer > 0) {
+         rainTimer -= dt;
+         waterLevel = Math.min(100, waterLevel + 4 * dt);
+       }
+       if (windTimer > 0) {
+         windTimer -= dt;
+         if (player) player.vx += Math.sin(performance.now() / 260) * 90 * dt;
+       }
+       if (earthquakeTimer > 0) {
+         earthquakeTimer -= dt;
+         if (Math.random() < 0.18) drops.push({ x: randomRange(cameraX + 80, cameraX + W - 80), y: 0, vy: 280, r: randomRange(4, 9), splash: false });
+       }
+       if (specialEvent) {
+         specialEvent.timer -= dt;
+         updateCharacterSpecial(dt);
+         if (specialEvent.timer <= 0) specialEvent = null;
+       }
+     }
 
     function updateCharacterSpecial(dt) {
       if (specialEvent.type === "cash") {
@@ -425,37 +455,82 @@
     }
 
     function triggerRandomEvent() {
-      const eventPool = ["water", "tools", "coffee", "sun", "neighbor", "munipa", "tamborrada", "special"];
-      const eventName = eventPool[Math.floor(Math.random() * eventPool.length)];
-      if (eventName === "water") {
-        activeEvent = { type: "water", timer: 8 };
-        showNotice("EVENTO: ¡TORRENTE DE AGUA!", 3.2);
-      }
-      if (eventName === "tools") {
-        activeEvent = { type: "tools", timer: 10 };
-        showNotice("EVENTO: ¡HERRAMIENTAS OXIDADAS!", 3.2);
-      }
-      if (eventName === "coffee") {
-        coffee = { x: randomRange(cameraX + 80, cameraX + W - 110), y: -30, size: 24, vy: 95, glow: 0 };
-        showNotice("EVENTO: ¡SUBIDÓN DE CAFEÍNA!", 3.2);
-      }
-      if (eventName === "sun") {
-        sunTimer = 9;
-        showNotice("EVENTO: ¡SOLAZO! El agua se seca", 3.2);
-      }
-      if (eventName === "neighbor") {
-        spawnHelper("neighbor");
-        showNotice("EVENTO: ¡VECINO MANITAS!", 3.2);
-      }
-      if (eventName === "munipa") {
-        spawnHelper("munipa");
-        showNotice("EVENTO: ¡MUNIPA DE REFUERZO!", 3.2);
-      }
-      if (eventName === "tamborrada") {
-        showNotice("EVENTO: ¡TAMBORRADA! Enemigos aturdidos", 3.2);
-        enemies.forEach(enemy => { enemy.stun = Math.max(enemy.stun, 5); });
-      }
-      if (eventName === "special") triggerCharacterSpecial();
+       const eventPool = ["galerna", "traineras", "bretxa", "tamborrada", "sirena", "topo", "marea", "aldapa", "jazzaldia", "pintxo", "portua", "igeldo", "special"];
+       const eventName = eventPool[Math.floor(Math.random() * eventPool.length)];
+       if (eventName === "galerna") {
+         activeEvent = { type: "water", timer: 8 };
+         rainTimer = 8;
+         showNotice("EVENTO: ¡GALERNA EN LA CONCHA! Sube el agua", 3.2);
+       }
+       if (eventName === "traineras") {
+         coffee = { x: randomRange(cameraX + 80, cameraX + W - 110), y: -30, size: 24, vy: 95, glow: 0 };
+         showNotice("EVENTO: ¡TRAINERAS DE PASAIA! Energía marinera", 3.2);
+       }
+       if (eventName === "bretxa") {
+         activeEvent = { type: "tools", timer: 10 };
+         showNotice("EVENTO: ¡MERCADO DE LA BRETXA! Herramientas baratas", 3.2);
+       }
+       if (eventName === "tamborrada") {
+         enemies.forEach(enemy => { enemy.stun = Math.max(enemy.stun, 5); });
+         showNotice("EVENTO: ¡TAMBORRADA! Enemigos aturdidos", 3.2);
+       }
+       if (eventName === "sirena") {
+         enemies.forEach(enemy => { enemy.vx *= -1; enemy.stun = Math.max(enemy.stun, 1.2); });
+         showNotice("EVENTO: ¡SIRENA DEL PUERTO! Todos cambian de rumbo", 3.2);
+       }
+       if (eventName === "topo") {
+         windTimer = 8;
+         showNotice("EVENTO: ¡TOPO AVERIADO! Empujones laterales", 3.2);
+       }
+       if (eventName === "marea") {
+         waterLevel = Math.min(waterLevel + 24, 100);
+         showNotice("EVENTO: ¡MAREA VIVA EN PASAIA! El agua sube", 3.2);
+       }
+       if (eventName === "aldapa") {
+         for (let i = 0; i < 4; i++) spawnEnemyNearPlayer("rat", 1);
+         showNotice("EVENTO: ¡ALDAPA DE MIRACRUZ! Cuesta arriba con ratas", 3.2);
+       }
+       if (eventName === "jazzaldia") {
+         enemies.forEach(enemy => { enemy.stun = Math.max(enemy.stun, 2.5); });
+         score += 120;
+         showNotice("EVENTO: ¡JAZZALDIA! Ritmo y +120 pts", 3.2);
+       }
+       if (eventName === "pintxo") {
+         playerHealth = Math.min(5, playerHealth + 1);
+         score += 80;
+         showNotice("EVENTO: ¡PINTXO DE LA PARTE VIEJA! +1 vida", 3.2);
+       }
+       if (eventName === "portua") {
+         spawnHelper("neighbor");
+         spawnHelper("munipa");
+         showNotice("EVENTO: ¡PORTUA DE PASAIA! Refuerzos", 3.2);
+       }
+       if (eventName === "igeldo") {
+         earthquakeTimer = 6;
+         showNotice("EVENTO: ¡MONTE IGELDO TIEMBLA! Caen gotas", 3.2);
+       }
+       if (eventName === "special") {
+         triggerCharacterSpecial();
+       }
+     }
+
+    function spawnEnemyNearPlayer(type, hp = 2) {
+      const enemyX = clamp(player.x + randomRange(-190, 190), 40, worldWidth - 80);
+      enemies.push({
+        type,
+        x: enemyX,
+        y: getFloorY(enemyX) - 22,
+        w: 34,
+        h: 22,
+        vx: randomRange(70, 120) * (Math.random() > 0.5 ? 1 : -1),
+        hp,
+        damage: type === "cockroach" ? 0.5 : 1,
+        hitFlash: 0,
+        stun: 0,
+        flying: false,
+        attackTimer: 0,
+        specialType: null
+      });
     }
 
     function triggerCharacterSpecial() {
@@ -877,15 +952,74 @@
               color: "#e8c840",
               owner: enemy
             });
-            enemy.attackTimer = 2 + Math.random() * 1.5;
+            enemy.attackTimer = 2 + Math.random();
           }
-          if (Math.random() < 0.02) enemy.vx *= -1;
         }
 
-        const isMariKarmen = selectedCharacter?.id === "mariKarmen";
-        if (isMariKarmen && Math.abs(enemy.x - player.x) < 300) {
-          enemy.stun = Math.max(enemy.stun, 0.5);
+        // Comportamientos especiales de enemigos nuevos
+        if (enemy.specialType === "mariKarmen") {
+          // Mari Karmen molesta a otros enemigos pero no ataca al jugador
+          for (const other of enemies) {
+            if (other !== enemy && other.type !== "boss") {
+              const dist = Math.hypot(enemy.x - other.x, enemy.y - other.y);
+              if (dist < 150) {
+                // Alejar a otros enemigos
+                const dx = other.x - enemy.x;
+                const dy = other.y - enemy.y;
+                other.vx += (dx / (dist || 1)) * 20 * dt;
+              }
+            }
+          }
         }
+
+        if (enemy.specialType === "alcalde") {
+          enemy.attackTimer -= dt;
+          if (enemy.attackTimer <= 0 && enemies.length < 34) {
+            const screen = currentScreen();
+            const spawnedType = Math.random() < 0.75 ? "rat" : (currentStage >= 5 ? "thief" : "dog");
+            const enemyW = spawnedType === "dog" ? 38 : 34;
+            const enemyH = spawnedType === "rat" ? 22 : spawnedType === "dog" ? 24 : 58;
+            const enemyX = clamp(enemy.x + randomRange(-120, 120), 40, worldWidth - 80);
+            const newRat = {
+              type: spawnedType,
+              x: enemyX,
+              y: getFloorY(enemyX) - enemyH,
+              w: enemyW,
+              h: enemyH,
+              vx: randomRange(42, 82) * (Math.random() > 0.5 ? 1 : -1) * screen.difficulty,
+              hp: spawnedType === "rat" ? 2 : 3,
+              damage: spawnedType === "dog" ? 1 : 1,
+              hitFlash: 0,
+              stun: 0,
+              flying: false,
+              attackTimer: 0,
+              specialType: null
+            };
+            enemies.push(newRat);
+            enemy.attackTimer = 2.2 + Math.random() * 1.4;
+          }
+        }
+
+        if (enemy.specialType === "hincha") {
+          enemy.attackTimer -= dt;
+          if (Math.abs(enemy.x - player.x) < 200) {
+            player.vx += Math.sign(player.x - enemy.x || 1) * 180 * dt;
+            if (enemy.attackTimer <= 0 && hurtTimer <= 0) {
+              damagePlayer(0.5, Math.sign(player.x - enemy.x || 1) * 210, -80);
+              showNotice("¡EL HINCHA TE DESCONCENTRA!", 0.8);
+              enemy.attackTimer = 2.4;
+            }
+          }
+          for (const other of enemies) {
+            if (other !== enemy) {
+              const dist = Math.hypot(enemy.x - other.x, enemy.y - other.y);
+              if (dist < 120) {
+                other.stun = Math.max(other.stun, 2);
+              }
+            }
+          }
+        }
+        if (Math.random() < 0.02) enemy.vx *= -1;
 
         if (hurtTimer <= 0 && rectsOverlap(player.x, player.y, player.w, player.h, enemy.x, enemy.y, enemy.w, enemy.h)) {
           if (specialEvent?.type === "prost" || specialEvent?.type === "birra") {
@@ -894,7 +1028,7 @@
             showNotice(specialEvent?.type === "birra" ? "¡BIRRA DEL KAMIO! Inmunidad" : "¡BOCATA DEL PROST! Daño bloqueado", 0.8);
             continue;
           }
-          if (isMariKarmen) continue;
+          if (enemy.specialType === "mariKarmen") continue;
           damagePlayer(enemy.damage || 1, -Math.sign(enemy.vx || 1) * 220, -180);
           showNotice("¡GOLPE!", 0.8);
         }
@@ -1854,6 +1988,9 @@
       if (type === "thief") return "#303044";
       if (type === "knife") return "#2d2a33";
       if (type === "dj") return "#7c4dff";
+      if (type === "mariKarmen") return "#c44060";
+      if (type === "alcalde") return "#e03030";
+      if (type === "hincha") return "#1a4d8c";
       if (type === "dog") return "#8b5a2b";
       if (type === "boss") return "#7c4dff";
       return "#9a5d2e";
@@ -1867,6 +2004,9 @@
       if (type === "thief") return "Ladrón de cobre";
       if (type === "knife") return "Segarro";
       if (type === "dj") return "DJ Brayan";
+      if (type === "mariKarmen") return "Mari Karmen";
+      if (type === "alcalde") return "Alcalde de Bildu";
+      if (type === "hincha") return "Hincha de la Real";
       if (type === "drone") return "Dron averiado";
       if (type === "boss") return "JEFE DEL BARRIO";
       return "Gremlin de óxido";
@@ -1971,29 +2111,30 @@
       const scenario = selectedScenario || scenarios[0];
       const screen = currentScreen();
       ctx.fillStyle = "rgba(3, 12, 22, 0.72)";
-      ctx.fillRect(18, 16, 430, 156);
+      ctx.fillRect(18, 16, 430, 178);
       ctx.strokeStyle = "rgba(255,255,255,0.12)";
-      ctx.strokeRect(18, 16, 430, 156);
-      ctx.fillStyle = "#f5fbff";
-      ctx.font = "700 18px system-ui";
-      ctx.fillText(`${selectedCharacter.name} - ${selectedCharacter.title}`, 34, 43);
-      ctx.font = "600 14px system-ui";
-      ctx.fillStyle = "#9cb8c9";
-      const repaired = pipes.filter(pipe => pipe.leak <= 0).length;
-      const openDrains = drains.filter(drain => drain.clogged <= 0).length;
-      ctx.fillText(`Lugar: ${scenario.name} · Zona ${currentStage}/${totalStages}`, 34, 66);
-      ctx.fillText(`Tramo: ${screen.name}`, 34, 88);
-      ctx.fillText(`Averías: ${repaired}/${pipes.length} · Sumideros: ${openDrains}/${drains.length} · Agua: ${Math.floor(waterLevel)}%`, 34, 110);
-      const effect = sunTimer > 0 ? "Solazo activo: el agua baja rápido" : allPipesSealed() ? "Barrio completo" : reggaetonSlowActive() ? "Reggaetón cerca: velocidad reducida" : activeEvent ? eventLabel(activeEvent.type) : caffeineTimer > 0 ? "Cafeína activa" : "Explora el mapa y repara averías";
-      ctx.fillText(effect, 34, 132);
+      ctx.strokeRect(18, 16, 430, 178);
+       ctx.fillStyle = "#f5fbff";
+       ctx.font = "700 18px system-ui";
+       ctx.fillText(`${selectedCharacter.name} - ${selectedCharacter.title}`, 34, 43);
+       ctx.font = "600 14px system-ui";
+       ctx.fillStyle = "#9cb8c9";
+       const repaired = pipes.filter(pipe => pipe.leak <= 0).length;
+       const openDrains = drains.filter(drain => drain.clogged <= 0).length;
+       ctx.fillText(`Lugar: ${scenario.name} · Zona ${currentStage}/${totalStages}`, 34, 66);
+       ctx.fillText(`Tramo: ${screen.name}`, 34, 88);
+       ctx.fillText(`Averías: ${repaired}/${pipes.length} · Sumideros: ${openDrains}/${drains.length} · Agua: ${Math.floor(waterLevel)}%`, 34, 110);
+       ctx.fillText(`Puntuación: ${Math.floor(score)}`, 34, 132);
+       const effect = rainTimer > 0 ? "Galerna activa: el agua sube" : windTimer > 0 ? "Topo averiado: empujones laterales" : earthquakeTimer > 0 ? "Igeldo tiembla: caen gotas" : sunTimer > 0 ? "Solazo activo: el agua baja rápido" : allPipesSealed() ? "Barrio completo" : reggaetonSlowActive() ? "Reggaetón cerca: velocidad reducida" : activeEvent ? eventLabel(activeEvent.type) : caffeineTimer > 0 ? "Cafeína activa" : "Explora el mapa y repara averías";
+       ctx.fillText(effect, 34, 154);
 
-      if (comboCount > 1) {
-        ctx.fillStyle = "#ffd166";
-        ctx.font = "900 14px system-ui";
-        ctx.fillText(`Combo x${comboCount}`, 34, 156);
-        ctx.fillStyle = "rgba(255,209,102,0.3)";
-        ctx.fillRect(34, 160, Math.min(120, comboTimer / 3 * 120), 4);
-      }
+       if (comboCount > 1) {
+         ctx.fillStyle = "#ffd166";
+         ctx.font = "900 14px system-ui";
+         ctx.fillText(`Combo x${comboCount}`, 34, 178);
+         ctx.fillStyle = "rgba(255,209,102,0.3)";
+         ctx.fillRect(34, 182, Math.min(120, comboTimer / 3 * 120), 4);
+       }
 
       if (specialEvent) {
         ctx.fillStyle = "#ffd166";
@@ -2131,8 +2272,8 @@
     }
 
     function eventLabel(type) {
-      if (type === "water") return "Evento: Torrente de agua";
-      if (type === "tools") return "Evento: Herramientas oxidadas";
+      if (type === "water") return "Evento: Galerna de La Concha";
+      if (type === "tools") return "Evento: Mercado de la Bretxa";
       return "Evento activo";
     }
 

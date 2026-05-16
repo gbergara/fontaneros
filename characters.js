@@ -80,6 +80,7 @@ const characters = [
   {
     id: "mariKarmen",
     name: "Mari Karmen",
+    enemyOnly: true,
     title: "La Jubilada",
     cap: "#b08060",
     overalls: "#c44060",
@@ -93,6 +94,7 @@ const characters = [
   {
     id: "alcalde",
     name: "Alcalde de Bildu",
+    enemyOnly: true,
     title: "El Político",
     cap: "#e03030",
     overalls: "#202830",
@@ -107,6 +109,7 @@ const characters = [
   {
     id: "hincha",
     name: "Hincha de la Real",
+    enemyOnly: true,
     title: "El Aficionado",
     cap: "#1a4d8c",
     overalls: "#0a2a5a",
